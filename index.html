@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>学习乐园 - study.mintypisces.cn</title>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-tap-highlight-color:transparent;height:100%}
+body{
+  font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:#f0f4ff;color:#1e293b;min-height:100dvh;height:100%;
+  user-select:none;-webkit-user-select:none;overflow-x:hidden
+}
+img,a{-webkit-user-drag:none;user-select:none}
+
+/* ─── Main Category Tabs ──────────────────────────────────── */
+.main-tabs{
+  display:flex;gap:4px;padding:8px 12px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  position:sticky;top:0;z-index:100;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none
+}
+.main-tabs::-webkit-scrollbar{display:none}
+.main-tab{
+  flex:1;padding:8px 10px;border:none;border-radius:8px;cursor:pointer;
+  font-size:clamp(14px,3.5vw,16px);font-weight:600;
+  background:rgba(255,255,255,.15);color:rgba(255,255,255,.7);
+  transition:all .2s;white-space:nowrap;min-height:40px
+}
+.main-tab:hover{background:rgba(255,255,255,.25);color:#fff}
+.main-tab.active{background:#fff;color:#6366f1;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+
+/* ─── Sub Tabs ────────────────────────────────────────────── */
+.sub-tabs{
+  display:flex;gap:4px;padding:10px 12px 0;
+  background:#f0f4ff;position:sticky;top:0;z-index:99;
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none
+}
+.sub-tabs::-webkit-scrollbar{display:none}
+.sub-tab{
+  flex-shrink:0;padding:clamp(8px,2vw,14px) clamp(14px,3.5vw,24px);
+  font-size:clamp(13px,3.2vw,15px);font-weight:600;
+  border:none;border-radius:10px 10px 0 0;cursor:pointer;
+  background:transparent;color:#94a3b8;transition:all .2s;
+  position:relative;white-space:nowrap;min-height:44px
+}
+.sub-tab:hover{color:#6366f1;background:rgba(99,102,241,.08)}
+.sub-tab.active{color:#6366f1;background:#fff;box-shadow:0 -1px 3px rgba(0,0,0,.05)}
+.sub-tab.active::after{content:'';position:absolute;bottom:0;left:10%;right:10%;height:3px;background:#6366f1;border-radius:3px 3px 0 0}
+
+/* ─── Content (normal browsing) ──────────────────────────── */
+.content{max-width:960px;margin:0 auto;padding:12px;transition:opacity .3s}
+.content.hidden{opacity:0;pointer-events:none;height:0;overflow:hidden;padding:0}
+.section{display:none}
+.section.active{display:block}
+.section-title{font-size:clamp(14px,3.5vw,16px);font-weight:600;color:#6366f1;margin:12px 0 8px;padding-left:4px}
+.section-subtitle{font-size:clamp(11px,2.8vw,13px);color:#94a3b8;margin:-4px 0 10px;padding-left:4px}
+
+/* ─── Pinyin Grid ─────────────────────────────────────────── */
+.pinyin-grid{
+  display:grid;gap:clamp(6px,1.5vw,10px);
+  grid-template-columns:repeat(auto-fill,minmax(clamp(64px,16vw,88px),1fr));
+  margin-bottom:20px
+}
+.pinyin-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:clamp(10px,2.5vw,16px) clamp(4px,1vw,8px) clamp(6px,1.5vw,10px);
+  border-radius:12px;border:none;cursor:pointer;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);
+  transition:all .2s;position:relative;min-height:clamp(54px,14vw,72px);
+  -webkit-tap-highlight-color:transparent
+}
+.pinyin-card:active{transform:scale(.92)}
+.pinyin-card.playing{background:#6366f1;color:#fff;transform:scale(1.05);box-shadow:0 4px 16px rgba(99,102,241,.35)}
+.pinyin-card .pinyin-text{font-size:clamp(18px,4.5vw,24px);font-weight:700;line-height:1.2}
+.pinyin-card .play-icon{font-size:clamp(9px,2.2vw,12px);color:#94a3b8;margin-top:4px}
+.pinyin-card.playing .play-icon{color:rgba(255,255,255,.7)}
+.pinyin-card.shengmu{border-left:3px solid #6366f1}
+.pinyin-card.yunmu{border-left:3px solid #22c55e}
+.pinyin-card.zhengti{border-left:3px solid #f59e0b}
+
+/* ─── DICTATION OVERLAY (fullscreen) ──────────────────────── */
+.dict-overlay{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:#f0f4ff;
+  flex-direction:column;overflow:hidden;
+  overscroll-behavior:none
+}
+.dict-overlay.active{display:flex}
+
+/* Top bar */
+.dict-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:max(12px,env(safe-area-inset-top)) 16px 10px;
+  background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);flex-shrink:0
+}
+.dict-topbar-left{display:flex;align-items:center;gap:10px}
+.dict-mode-badge{
+  font-size:clamp(12px,3vw,14px);font-weight:600;
+  padding:4px 12px;border-radius:20px;background:#eef2ff;color:#6366f1
+}
+.dict-countdown{
+  font-size:clamp(13px,3.2vw,15px);color:#64748b;font-weight:600
+}
+.dict-countdown span{color:#6366f1}
+.dict-end-btn{
+  padding:8px 16px;border-radius:8px;border:1.5px solid #e2e8f0;
+  font-size:clamp(13px,3vw,14px);font-weight:600;cursor:pointer;
+  background:#fff;color:#94a3b8;transition:all .2s;
+  -webkit-tap-highlight-color:transparent
+}
+.dict-end-btn:active{transform:scale(.93)}
+
+/* Practice area (fills remaining space) */
+.dict-practice{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:clamp(10px,2vw,16px);
+  padding:clamp(8px,2vw,16px);overflow:hidden
+}
+
+.dict-status{
+  display:flex;align-items:center;gap:8px;
+  font-size:clamp(15px,3.5vw,18px);color:#94a3b8;
+  padding:6px 18px;border-radius:20px;transition:all .3s
+}
+.dict-status.listening{background:#eef2ff;color:#6366f1}
+.dict-status.writing{background:#f0fdf4;color:#22c55e}
+.dict-status.reveal{background:#fef3c7;color:#d97706}
+
+/* Bigger canvas */
+.canvas-wrapper{
+  position:relative;border-radius:16px;
+  border:3px dashed #c7d2fe;background:#f8faff;
+  width:100%;max-width:min(95vw,800px);touch-action:none;
+  transition:all .3s;flex-shrink:0
+}
+.canvas-wrapper.writing{border-color:#6366f1;background:#fff;box-shadow:0 0 0 4px rgba(99,102,241,.12)}
+.canvas-wrapper.reveal{border-color:#22c55e;background:#f0fdf4}
+.canvas-wrapper .canvas-label{
+  position:absolute;top:-10px;left:14px;
+  font-size:clamp(12px,2.8vw,14px);padding:0 8px;background:#f8faff;color:#a5b4fc;z-index:2;
+  border-radius:4px;transition:all .3s
+}
+.canvas-wrapper.writing .canvas-label{color:#6366f1;font-weight:600;background:#fff}
+.canvas-wrapper.reveal .canvas-label{color:#22c55e;background:#f0fdf4}
+.handwrite-canvas{
+  display:block;width:100%;height:clamp(160px,38vw,260px);border-radius:16px;
+  cursor:crosshair;touch-action:none
+}
+
+/* Reveal answer button */
+.dict-hint-btn{
+  display:none;padding:12px 28px;font-size:clamp(14px,3.5vw,16px);font-weight:600;
+  background:#f1f5f9;color:#64748b;border:1.5px dashed #cbd5e1;
+  border-radius:12px;cursor:pointer;transition:all .2s;
+  -webkit-tap-highlight-color:transparent;flex-shrink:0
+}
+.dict-hint-btn:active{transform:scale(.95)}
+.dict-hint-btn.show{display:inline-block}
+
+/* Result overlay (shows correct answer on top of canvas) */
+.dict-result-overlay{
+  display:none;position:absolute;inset:0;border-radius:16px;
+  align-items:center;justify-content:center;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(4px);
+  flex-direction:column;gap:6px;z-index:5
+}
+.dict-result-overlay.show{display:flex}
+.dict-result-overlay .answer-text{
+  font-size:clamp(48px,14vw,80px);font-weight:700;letter-spacing:4px;animation:popIn .3s ease
+}
+@keyframes popIn{0%{transform:scale(.5);opacity:0}60%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.dict-result-overlay .answer-sub{font-size:clamp(13px,3.2vw,15px);color:#94a3b8}
+
+/* Next button */
+.dict-next-btn{
+  display:none;padding:clamp(14px,3.5vw,18px) clamp(44px,10vw,72px);
+  border:none;border-radius:14px;font-size:clamp(18px,4.5vw,22px);font-weight:700;
+  cursor:pointer;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  box-shadow:0 4px 16px rgba(99,102,241,.3);transition:all .2s;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent
+}
+.dict-next-btn:active{transform:scale(.95)}
+.dict-next-btn.show{display:inline-block}
+
+/* ─── Canvas countdown timer ──────────────────────────────── */
+.canvas-timer{
+  position:absolute;top:-10px;right:14px;
+  font-size:clamp(14px,3vw,18px);font-weight:700;color:#6366f1;z-index:2;
+  background:#fff;padding:0 8px;border-radius:4px;display:none;
+  transition:all .3s
+}
+.canvas-timer.show{display:block;animation:popIn .2s ease}
+.canvas-wrapper.writing .canvas-timer{color:#22c55e}
+
+/* ─── Replay button ─────────────────────────────────────── */
+.dict-replay-btn{
+  padding:6px 14px;border-radius:20px;border:1.5px solid #e2e8f0;
+  background:#fff;font-size:clamp(13px,3vw,14px);font-weight:600;
+  cursor:pointer;color:#6366f1;transition:all .2s;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;display:none
+}
+.dict-replay-btn:active{transform:scale(.93)}
+.dict-replay-btn.show{display:inline-block}
+
+/* ─── Certificate Modal ───────────────────────────────────── */
+.cert-overlay{
+  display:none;position:absolute;inset:0;z-index:20;
+  background:rgba(0,0,0,.35);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;
+  animation:fadeIn .3s ease
+}
+.cert-overlay.show{display:flex}
+@keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+.cert-modal{
+  background:#fff;border-radius:24px;padding:clamp(28px,6vw,44px) clamp(24px,5vw,40px);
+  max-width:420px;width:90%;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.15);
+  animation:certPop .5s cubic-bezier(.175,.885,.32,1.275);
+  position:relative
+}
+.cert-modal::before{
+  content:'';position:absolute;inset:-3px;border-radius:27px;
+  background:linear-gradient(135deg,#6366f1,#a78bfa,#f59e0b,#22c55e,#6366f1);
+  background-size:300% 300%;z-index:-1;animation:gradientShift 4s ease infinite
+}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes certPop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+.cert-badge{font-size:clamp(48px,12vw,64px);margin-bottom:4px}
+.cert-title{font-size:clamp(22px,5.5vw,28px);font-weight:800;color:#1e293b;margin-bottom:8px}
+.cert-score{font-size:clamp(36px,9vw,48px);font-weight:800;color:#6366f1;margin-bottom:4px}
+.cert-stars{font-size:clamp(20px,5vw,28px);margin-bottom:8px;letter-spacing:4px}
+.cert-msg{font-size:clamp(14px,3.5vw,16px);color:#64748b;margin-bottom:4px}
+.cert-detail{font-size:clamp(12px,3vw,14px);color:#94a3b8;margin-bottom:16px}
+.cert-btn{
+  padding:12px 40px;border:none;border-radius:12px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  font-size:16px;font-weight:600;cursor:pointer;
+  box-shadow:0 4px 16px rgba(99,102,241,.3);transition:all .2s
+}
+.cert-btn:active{transform:scale(.95)}
+
+/* ═══ START SCREEN ═══ */
+.dict-start{
+  display:flex;flex-direction:column;align-items:center;
+  gap:clamp(10px,2vw,18px);
+  padding:clamp(16px,4vw,32px) 16px clamp(20px,5vw,40px);
+  animation:fadeSlide .4s ease;max-width:600px;margin:0 auto
+}
+/* Landscape / wide: left (icon+title) + right (categories+mode+button) */
+@media(min-width:560px){
+  .dict-start{
+    flex-direction:row;align-items:center;gap:clamp(24px,4vw,48px);
+    max-width:780px;padding:clamp(20px,4vw,40px) 24px
+  }
+  .dict-start-left{flex:0 0 auto;text-align:center;padding-top:0;gap:clamp(14px,3vh,28px)}
+  .dict-start-icon{font-size:clamp(48px,6vw,64px)}
+  .dict-start-title{font-size:clamp(18px,2.5vw,24px);text-align:center}
+  .dict-start-sub{font-size:clamp(13px,1.6vw,15px);text-align:center;margin-top:-4px}
+  .dict-start-right{flex:1;gap:clamp(16px,2.5vw,28px)}
+  .dict-start-categories{gap:clamp(10px,1.2vw,14px)}
+  .dict-start-category{padding:clamp(14px,2vw,20px);font-size:clamp(16px,2vw,20px)}
+  .dict-mode-row{justify-content:center;gap:14px}
+  .dict-mode-btn{padding:10px 28px;font-size:clamp(14px,1.6vw,16px)}
+  .dict-start-btn{padding:14px 48px;font-size:clamp(16px,2vw,20px);align-self:center}
+}
+.dict-start-left{display:flex;flex-direction:column;align-items:center;gap:clamp(12px,4vh,36px)}
+.dict-start-right{display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vw,16px);width:100%}
+.dict-start-icon{font-size:clamp(36px,8vw,56px);opacity:.3}
+.dict-start-title{font-size:clamp(16px,3.8vw,20px);font-weight:700;color:#1e293b;text-align:center}
+.dict-start-sub{font-size:clamp(13px,3.2vw,14px);color:#94a3b8;text-align:center;margin-top:-8px}
+.dict-start-categories{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.dict-start-category{
+  padding:clamp(12px,2.5vw,18px);border-radius:14px;border:2px solid #e2e8f0;background:#fff;
+  font-size:clamp(15px,3.8vw,18px);font-weight:600;cursor:pointer;
+  transition:all .2s;color:#64748b;display:flex;flex-direction:column;align-items:center;gap:3px;
+  -webkit-tap-highlight-color:transparent
+}
+.dict-start-category .cat-count{font-size:clamp(11px,2.8vw,13px);font-weight:400;color:#94a3b8}
+.dict-start-category:hover{background:#f8faff;border-color:#a5b4fc;color:#6366f1}
+.dict-start-category:active{transform:scale(.95)}
+.dict-start-category.selected{background:#eef2ff;border-color:#6366f1;color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.dict-start-category.selected .cat-count{color:#6366f1}
+
+/* Mode toggle */
+.dict-mode-row{display:flex;gap:10px;justify-content:center}
+.dict-mode-btn{
+  padding:10px 24px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;
+  font-size:clamp(14px,3.5vw,16px);font-weight:600;cursor:pointer;color:#64748b;transition:all .2s;
+  -webkit-tap-highlight-color:transparent
+}
+.dict-mode-btn:active{transform:scale(.95)}
+.dict-mode-btn.active{border-color:#6366f1;background:#eef2ff;color:#6366f1}
+
+.dict-start-btn{
+  padding:clamp(14px,3.5vw,20px) clamp(40px,10vw,72px);
+  border:none;border-radius:14px;font-size:clamp(17px,4.2vw,20px);font-weight:700;
+  cursor:pointer;transition:all .2s;min-height:52px;
+  -webkit-tap-highlight-color:transparent
+}
+.dict-start-btn.ready{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.3)}
+.dict-start-btn.ready:active{transform:scale(.95)}
+.dict-start-btn.idle{background:#e2e8f0;color:#94a3b8;cursor:not-allowed}
+
+/* ═══ REVIEW SCREEN ═══ */
+.dict-review{
+  display:none;flex-direction:column;align-items:center;
+  padding:max(16px,env(safe-area-inset-top)) 12px 32px;overflow-y:auto;
+  flex:1;gap:8px;max-width:640px;margin:0 auto;width:100%
+}
+.dict-review.active{display:flex}
+.dict-review-title{
+  font-size:clamp(20px,5vw,26px);font-weight:700;color:#1e293b;margin:8px 0 4px
+}
+.dict-review-sub{
+  font-size:clamp(13px,3.2vw,14px);color:#94a3b8;margin-bottom:12px
+}
+
+.dict-review-grid{
+  display:flex;flex-direction:column;gap:10px;width:100%
+}
+.dict-review-card{
+  background:#fff;border-radius:12px;padding:10px 14px;box-shadow:0 1px 4px rgba(0,0,0,.06);
+  display:flex;align-items:center;gap:12px
+}
+.dict-review-card .py{font-size:clamp(20px,4.5vw,28px);font-weight:700;color:#6366f1;flex:0 0 60px;text-align:center}
+.dict-review-card .py-img{
+  width:clamp(70px,20vw,100px);height:clamp(44px,12vw,60px);border-radius:6px;border:1px solid #e2e8f0;
+  background:#fafafa;object-fit:contain;flex-shrink:0
+}
+.dict-review-card .py-empty{
+  width:clamp(70px,20vw,100px);height:clamp(44px,12vw,60px);border-radius:6px;border:1px dashed #e2e8f0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;color:#cbd5e1;background:#fafafa;flex-shrink:0
+}
+.dict-review-card .py-grade{
+  display:flex;gap:10px;margin-left:auto;flex-shrink:0
+}
+.dict-review-card .py-grade button{
+  width:48px;height:48px;border-radius:50%;border:2px solid #e2e8f0;
+  font-size:20px;cursor:pointer;transition:all .15s;background:#fff;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent
+}
+.dict-review-card .py-grade button:active{transform:scale(.85)}
+.dict-review-card .py-grade .g-yes.active{background:#dcfce7;color:#16a34a;border-color:#86efac}
+.dict-review-card .py-grade .g-no.active{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
+
+.dict-review-summary{
+  margin:12px 0;font-size:clamp(16px,4vw,20px);font-weight:700;color:#1e293b
+}
+.dict-review-summary span{color:#6366f1}
+.dict-review-back-btn{
+  padding:12px 36px;border-radius:12px;border:none;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(99,102,241,.3)
+}
+
+/* ─── Misc ────────────────────────────────────────────────── */
+@keyframes fadeSlide{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:translateY(0)}}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
+
+/* ─── Alphabet ───────────────────────────────────────────── */
+.alphabet-grid{
+  display:grid;gap:clamp(8px,1.5vw,12px);
+  grid-template-columns:repeat(auto-fill,minmax(clamp(72px,16vw,100px),1fr));
+  margin-bottom:16px
+}
+.alphabet-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:clamp(12px,2.5vw,18px) clamp(6px,1.5vw,10px);
+  border-radius:14px;border:2px solid #e2e8f0;cursor:pointer;
+  transition:all .2s;position:relative;min-height:clamp(64px,16vw,84px);
+  -webkit-tap-highlight-color:transparent
+}
+.alphabet-card:active{transform:scale(.92)}
+.alphabet-card.vowel{background:#fef2f2;border-color:#fca5a5}
+.alphabet-card.consonant{background:#eef2ff;border-color:#a5b4fc}
+.alphabet-card.learned{background:#f0fdf4;border-color:#86efac}
+.alphabet-card .letter-main{font-size:clamp(26px,6.5vw,36px);font-weight:800;color:#1e293b;line-height:1.2}
+.alphabet-card .letter-emoji{font-size:clamp(16px,4vw,20px);margin-top:2px;opacity:.7}
+.alphabet-card .letter-learned-badge{
+  position:absolute;top:-4px;right:-4px;width:22px;height:22px;
+  border-radius:50%;background:#22c55e;color:#fff;font-size:12px;
+  display:none;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(34,197,94,.4)
+}
+.alphabet-card.learned .letter-learned-badge{display:flex}
+
+/* Alphabet progress bar */
+.alphabet-progress{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:14px;padding:0 2px
+}
+.alphabet-progress .bar-track{
+  flex:1;height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden
+}
+.alphabet-progress .bar-fill{
+  height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#6366f1,#22c55e);transition:width .4s ease
+}
+.alphabet-progress .bar-text{
+  font-size:13px;font-weight:600;color:#6366f1;white-space:nowrap
+}
+
+/* Letter detail panel (inline, not modal) */
+.letter-panel{
+  display:none;margin:0 0 16px;
+  background:#fff;border-radius:16px;
+  border:2px solid #e2e8f0;overflow:hidden;
+  animation:fadeSlide .25s ease
+}
+.letter-panel.show{display:block}
+.letter-panel-inner{
+  padding:clamp(20px,4vw,32px);text-align:center
+}
+.letter-panel .lp-big{
+  font-size:clamp(64px,16vw,96px);font-weight:800;
+  color:#6366f1;letter-spacing:6px;line-height:1.1;margin-bottom:4px
+}
+.letter-panel .lp-word{
+  font-size:clamp(20px,5vw,28px);font-weight:600;color:#1e293b;margin-bottom:2px
+}
+.letter-panel .lp-type{
+  font-size:13px;color:#94a3b8;margin-bottom:16px
+}
+.letter-panel .lp-btns{
+  display:flex;gap:10px;justify-content:center;flex-wrap:wrap
+}
+.letter-panel .lp-btn{
+  padding:12px 28px;border:none;border-radius:12px;
+  font-size:15px;font-weight:600;cursor:pointer;transition:all .2s
+}
+.letter-panel .lp-btn:active{transform:scale(.95)}
+.letter-panel .lp-btn.write{
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  box-shadow:0 4px 16px rgba(99,102,241,.3)
+}
+.letter-panel .lp-btn.learned-toggle{
+  background:#f0fdf4;color:#16a34a;border:2px solid #86efac
+}
+.letter-panel .lp-btn.learned-toggle.is-learned{background:#fef2f2;color:#dc2626;border-color:#fca5a5}
+
+/* Writing canvas improvements for alphabet */
+.canvas-wrapper .trace-guide{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;z-index:5;opacity:.2
+}
+.canvas-wrapper .trace-guide span{
+  font-size:clamp(120px,30vw,200px);font-weight:800;color:#6366f1;
+  line-height:1;font-family:monospace
+}
+.canvas-wrapper .trace-guide.hidden{display:none}
+
+@media(max-width:480px){
+  .content{padding:8px}.dict-review-card{padding:10px}
+}
+@media(min-width:768px){
+  .pinyin-grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}
+  .pinyin-card:hover:not(.playing){background:#f8fafc;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+}
+
+@supports(padding:max(0px)){
+  .dict-topbar{padding-top:max(12px,env(safe-area-inset-top))}
+}
+</style>
+</head>
+<body oncontextmenu="return false">
+
+<div class="main-tabs" id="catTabs">
+  <button class="main-tab active" data-main="pinyin">🔤 拼音</button>
+  <button class="main-tab" data-main="english">🔠 英语</button>
+</div>
+
+<div class="sub-tabs" id="subPinyin">
+  <button class="sub-tab active" data-tab="shengmu">🔤 声母</button>
+  <button class="sub-tab" data-tab="yunmu">🎵 韵母</button>
+  <button class="sub-tab" data-tab="zhengti">📖 整体认读</button>
+  <button class="sub-tab" data-tab="dictation">✍️ 听写</button>
+</div>
+
+<div class="sub-tabs" id="subEnglish" style="display:none">
+  <button class="sub-tab active" data-tab="alphabet">🔤 字母</button>
+</div>
+
+<div class="content" id="mainContent">
+  <div class="section active" id="sec-shengmu">
+    <div class="section-title">声母（23个）</div>
+    <div class="section-subtitle">点击卡片听发音</div>
+    <div class="pinyin-grid" id="grid-shengmu"></div>
+  </div>
+  <div class="section" id="sec-yunmu">
+    <div class="section-title">韵母（24个）</div>
+    <div class="section-subtitle">点击卡片听发音</div>
+    <div class="pinyin-grid" id="grid-yunmu"></div>
+  </div>
+  <div class="section" id="sec-zhengti">
+    <div class="section-title">整体认读音节（16个）</div>
+    <div class="section-subtitle">点击卡片听发音</div>
+    <div class="pinyin-grid" id="grid-zhengti"></div>
+  </div>
+  <div class="section" id="sec-dictation">
+    <!-- ═══ START SCREEN ═══ -->
+    <div class="dict-start" id="dictStart">
+      <div class="dict-start-left">
+        <div class="dict-start-icon">✍️</div>
+        <div class="dict-start-title">选择要练习的内容</div>
+        <div class="dict-start-sub">选择一个范围，开始听写后会全屏显示</div>
+      </div>
+      <div class="dict-start-right">
+      <div class="dict-start-categories" id="startCats">
+        <button class="dict-start-category" data-filter="all"><span>全部</span><span class="cat-count">63个</span></button>
+        <button class="dict-start-category" data-filter="shengmu"><span>声母</span><span class="cat-count">23个</span></button>
+        <button class="dict-start-category" data-filter="yunmu"><span>韵母</span><span class="cat-count">24个</span></button>
+        <button class="dict-start-category" data-filter="zhengti"><span>整体认读</span><span class="cat-count">16个</span></button>
+      </div>
+      <div class="dict-mode-row">
+        <button class="dict-mode-btn active" data-mode="normal">📋 正常模式</button>
+        <button class="dict-mode-btn" data-mode="infinite">♾️ 无限模式</button>
+      </div>
+      <button class="dict-start-btn idle" id="startBtn" disabled>请先选择范围</button>
+      </div>
+    </div>
+  </div>
+  <!-- ═══ ALPHABET SECTION ═══ -->
+  <div class="section" id="sec-alphabet">
+    <div class="section-title">🔤 英语字母（26个）</div>
+    <div class="section-subtitle">点击卡片学习 · 元音<span style="color:#ef4444">♥</span> 辅音<span style="color:#6366f1">♦</span></div>
+    <!-- Progress bar -->
+    <div class="alphabet-progress" id="alphaProgress">
+      <div class="bar-track"><div class="bar-fill" id="alphaBarFill" style="width:0%"></div></div>
+      <span class="bar-text" id="alphaBarText">0/26 已学</span>
+    </div>
+    <!-- Inline letter detail panel (replaces the old modal) -->
+    <div class="letter-panel" id="letterPanel">
+      <div class="letter-panel-inner">
+        <div class="lp-big" id="lpBig">Aa</div>
+        <div class="lp-word" id="lpWord">🍎 apple</div>
+        <div class="lp-type" id="lpType">元音</div>
+        <div class="lp-btns">
+          <button class="lp-btn learned-toggle" id="lpToggle">✅ 标记已学会</button>
+          <button class="lp-btn write" id="lpPractice">✍️ 写这个字母</button>
+        </div>
+      </div>
+    </div>
+    <!-- Grid -->
+    <div class="alphabet-grid" id="alphabetGrid"></div>
+  </div>
+</div>
+
+<!-- ═══ DICTATION OVERLAY (fullscreen) ═══ -->
+<div class="dict-overlay" id="dictOverlay">
+  <!-- Top bar -->
+  <div class="dict-topbar">
+    <div class="dict-topbar-left">
+      <span class="dict-mode-badge" id="modeBadge">全部</span>
+      <span class="dict-countdown" id="countdownDisplay"></span>
+    </div>
+    <button class="dict-end-btn" id="endBtn">结束练习</button>
+  </div>
+
+  <!-- Practice area -->
+  <div class="dict-practice" id="practiceArea">
+    <div class="dict-status" id="statusBar">
+      <span id="statusIcon">🔊</span>
+      <span id="statusText">准备开始...</span>
+      <button class="dict-replay-btn" id="replayBtn">🔁 重播</button>
+    </div>
+
+    <div class="canvas-wrapper" id="canvasWrapper">
+      <span class="canvas-label">✏️ 手写区</span>
+      <div class="canvas-timer" id="canvasTimer"></div>
+      <canvas class="handwrite-canvas" id="hwCanvas"></canvas>
+      <div class="trace-guide" id="traceGuide"><span id="traceLetter">Aa</span></div>
+      <div class="dict-result-overlay" id="resultOverlay">
+        <div class="answer-text" id="answerText">???</div>
+        <div class="answer-sub" id="answerSub"></div>
+      </div>
+    </div>
+
+    <button class="dict-hint-btn" id="hintBtn">🙋 看答案</button>
+    <button class="dict-next-btn" id="nextBtn">继续下一题 ▶</button>
+  </div>
+
+  <!-- ═══ REVIEW SCREEN ═══ -->
+  <div class="dict-review" id="reviewScreen">
+    <div class="dict-review-title">📝 练习报告</div>
+    <div class="dict-review-sub" id="reviewSub"></div>
+    <div class="dict-review-grid" id="reviewGrid"></div>
+    <div class="dict-review-summary" id="reviewSummary"></div>
+    <div class="dict-review-actions" style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;justify-content:center">
+      <button class="dict-review-back-btn" id="reviewBackBtn">返回首页</button>
+      <button class="dict-review-cert-btn" id="reviewCertBtn" style="display:none;padding:12px 36px;border-radius:12px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 4px 16px rgba(245,158,11,.3);-webkit-tap-highlight-color:transparent">📜 查看证书</button>
+    </div>
+  </div>
+
+  <!-- ═══ CERTIFICATE MODAL ═══ -->
+  <div class="cert-overlay" id="certOverlay">
+    <div class="cert-modal" id="certModal">
+      <div class="cert-badge">🏆</div>
+      <div class="cert-title">练习完成！</div>
+      <div class="cert-score" id="certScore">0/0</div>
+      <div class="cert-stars" id="certStars"></div>
+      <div class="cert-msg" id="certMsg">继续加油！</div>
+      <div class="cert-detail" id="certDetail"></div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+        <button class="cert-btn" id="certBtn">返回首页</button>
+        <button class="cert-save-btn" id="certSaveBtn" style="padding:12px 24px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;color:#64748b;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent">💾 保存图片</button>
+        <button class="cert-share-btn" id="certShareBtn" style="display:none;padding:12px 24px;border:none;border-radius:12px;background:#6366f1;color:#fff;font-size:14px;font-weight:600;cursor:pointer;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent">📤 分享</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════════
+const PINYIN_DATA = {
+  shengmu: ['b','p','m','f','d','t','n','l','g','k','h','j','q','x','zh','ch','sh','r','z','c','s','y','w'],
+  yunmu: ['a','o','e','i','u','v','ai','ei','ui','ao','ou','iu','ie','ve','er','an','en','in','un','vn','ang','eng','ing','ong'],
+  zhengti: ['zhi','chi','shi','ri','zi','ci','si','yi','wu','yu','ye','yue','yuan','yin','yun','ying']
+};
+function dn(py){return py.replace('v','ü')}
+function catName(c){return{shengmu:'声母',yunmu:'韵母',zhengti:'整体认读'}[c]||'全部'}
+let allPinyin=[];
+for(const c of['shengmu','yunmu','zhengti'])PINYIN_DATA[c].forEach(py=>allPinyin.push({pinyin:py,category:c}));
+
+// ═══════════════════════════════════════════════════════════════
+//  ALPHABET DATA
+// ═══════════════════════════════════════════════════════════════
+const VOWELS = ['A','E','I','O','U'];
+const ALPHABET = [
+  {letter:'A',word:'apple',emoji:'🍎'},{letter:'B',word:'ball',emoji:'⚽'},
+  {letter:'C',word:'cat',emoji:'🐱'},{letter:'D',word:'dog',emoji:'🐕'},
+  {letter:'E',word:'egg',emoji:'🥚'},{letter:'F',word:'fish',emoji:'🐟'},
+  {letter:'G',word:'girl',emoji:'👧'},{letter:'H',word:'hat',emoji:'🎩'},
+  {letter:'I',word:'ice',emoji:'🧊'},{letter:'J',word:'juice',emoji:'🧃'},
+  {letter:'K',word:'kite',emoji:'🪁'},{letter:'L',word:'lion',emoji:'🦁'},
+  {letter:'M',word:'moon',emoji:'🌙'},{letter:'N',word:'nose',emoji:'👃'},
+  {letter:'O',word:'orange',emoji:'🍊'},{letter:'P',word:'pig',emoji:'🐷'},
+  {letter:'Q',word:'queen',emoji:'👑'},{letter:'R',word:'rabbit',emoji:'🐰'},
+  {letter:'S',word:'sun',emoji:'☀️'},{letter:'T',word:'tree',emoji:'🌳'},
+  {letter:'U',word:'umbrella',emoji:'☂️'},{letter:'V',word:'violin',emoji:'🎻'},
+  {letter:'W',word:'water',emoji:'💧'},{letter:'X',word:'x-ray',emoji:'🔬'},
+  {letter:'Y',word:'yoyo',emoji:'🪀'},{letter:'Z',word:'zebra',emoji:'🦓'}
+].map(a=>({...a,vowel:VOWELS.includes(a.letter)}));
+let currentLetter=null;
+function isLearned(l){try{return JSON.parse(localStorage.getItem('alphaLearned')||'[]').includes(l)}catch(e){return false}}
+function toggleLearned(l){try{let arr=JSON.parse(localStorage.getItem('alphaLearned')||'[]');const i=arr.indexOf(l);i>=0?arr.splice(i,1):arr.push(l);localStorage.setItem('alphaLearned',JSON.stringify(arr));return arr}catch(e){return[]}}
+
+// DOM refs
+const $=s=>document.getElementById(s);
+const startScreen=$('dictStart');
+const overlay=$('dictOverlay');
+const practiceArea=$('practiceArea');
+const reviewScreen=$('reviewScreen');
+const canvas=$('hwCanvas');
+const ctx=canvas.getContext('2d');
+const wrapper=$('canvasWrapper');
+const resultOverlay=$('resultOverlay');
+const statusBar=$('statusBar');
+const statusIcon=$('statusIcon');
+const statusText=$('statusText');
+const hintBtn=$('hintBtn');
+const nextBtn=$('nextBtn');
+const startBtn=$('startBtn');
+const replayBtn=$('replayBtn');
+const modeBadge=$('modeBadge');
+const countdownDisplay=$('countdownDisplay');
+const endBtn=$('endBtn');
+const answerText=$('answerText');
+const answerSub=$('answerSub');
+const reviewGrid=$('reviewGrid');
+const reviewSub=$('reviewSub');
+const reviewSummary=$('reviewSummary');
+const reviewBackBtn=$('reviewBackBtn');
+const reviewCertBtn=$('reviewCertBtn');
+const certOverlay=$('certOverlay');
+const certModal=$('certModal');
+const certScore=$('certScore');
+const certStars=$('certStars');
+const certMsg=$('certMsg');
+const certDetail=$('certDetail');
+const certBtn=$('certBtn');
+const certSaveBtn=$('certSaveBtn');
+const certShareBtn=$('certShareBtn');
+
+// State
+let selectedCategory='all';
+let infiniteMode=false;
+let dictFilter='all';
+let currentPy=null,currentCategory='';
+let roundBusy=false;
+let drawing=false,lastX=0,lastY=0,hasWritten=false;
+let idleTimer=null,autoNextTimer=null;
+let canvasImage=null; // captured data URL when revealing
+let practicedItems=[]; // {pinyin, category, image, correct:boolean|null}
+let remainingQueue=[]; // shuffled pinyins not yet practiced (normal mode)
+let questionNum=0;
+let currentAudio=null;
+
+// ═══════════════════════════════════════════════════════════════
+//  AUDIO (Safari-safe: always triggered by user gesture)
+// ═══════════════════════════════════════════════════════════════
+function playPinyin(py){
+  if(currentAudio){currentAudio.pause();currentAudio=null}
+  const a=new Audio();a.src=`audio/${py}.mp3`;currentAudio=a;
+  return new Promise(r=>{
+    let resolved=false;
+    function done(){if(!resolved){resolved=true;r()}}
+    a.onended=done;a.onerror=done;
+    a.play().catch(()=>done());
+    setTimeout(done,8000);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TAB / GRID (unchanged)
+// ═══════════════════════════════════════════════════════════════
+function renderGrid(cid,items,cls){
+  const g=document.getElementById(cid);
+  g.innerHTML=items.map(py=>`
+    <button class="pinyin-card ${cls}" data-py="${py}">
+      <span class="pinyin-text">${dn(py)}</span>
+      <span class="play-icon">▶</span>
+    </button>
+  `).join('');
+  g.querySelectorAll('.pinyin-card').forEach(el=>{
+    el.addEventListener('click',function(){
+      g.querySelectorAll('.pinyin-card').forEach(c=>c.classList.remove('playing'));
+      this.classList.add('playing');
+      const a=playPinyin(this.dataset.py);
+      a.then(()=>this.classList.remove('playing'));
+    });
+  });
+}
+renderGrid('grid-shengmu',PINYIN_DATA.shengmu,'shengmu');
+renderGrid('grid-yunmu',PINYIN_DATA.yunmu,'yunmu');
+renderGrid('grid-zhengti',PINYIN_DATA.zhengti,'zhengti');
+
+// ═══════════════════════════════════════════════════════════════
+//  ALPHABET GRID
+// ═══════════════════════════════════════════════════════════════
+function updateAlphaProgress(){
+  const learned=ALPHABET.filter(a=>isLearned(a.letter)).length;
+  const pct=Math.round(learned/26*100);
+  $('alphaBarFill').style.width=pct+'%';
+  $('alphaBarText').textContent=learned+'/26 已学';
+  // Re-render grid cards to update badges
+  document.querySelectorAll('.alphabet-card').forEach(el=>{
+    const l=el.dataset.letter;
+    const learned=isLearned(l);
+    el.classList.toggle('learned',learned);
+    el.querySelector('.letter-learned-badge').textContent=learned?'✓':'';
+  });
+}
+function renderAlphabet(){
+  const g=$('alphabetGrid');
+  g.innerHTML=ALPHABET.map(item=>`
+    <button class="alphabet-card ${item.vowel?'vowel':'consonant'}${isLearned(item.letter)?' learned':''}" data-letter="${item.letter}">
+      <span class="letter-main">${item.letter}${item.letter.toLowerCase()}</span>
+      <span class="letter-emoji">${item.emoji}</span>
+      <span class="letter-learned-badge">${isLearned(item.letter)?'✓':''}</span>
+    </button>
+  `).join('');
+  g.querySelectorAll('.alphabet-card').forEach(el=>{
+    el.addEventListener('click',function(){
+      const l=ALPHABET.find(a=>a.letter===this.dataset.letter);
+      if(!l)return;
+      currentLetter=l;
+      // Close any open panel first
+      $('letterPanel').classList.remove('show');
+      // Reposition: insert panel right before the grid
+      g.parentNode.insertBefore($('letterPanel'),g);
+      // Update panel content
+      $('lpBig').textContent=l.letter+l.letter.toLowerCase();
+      $('lpWord').textContent=l.emoji+' '+l.word;
+      $('lpType').textContent=l.vowel?'🔴 元音 (vowel)':'🔵 辅音 (consonant)';
+      // Update toggle button
+      const toggle=$('lpToggle');
+      const learned=isLearned(l.letter);
+      toggle.textContent=learned?'↩️ 标记未学会':'✅ 标记已学会';
+      toggle.className='lp-btn learned-toggle'+(learned?' is-learned':'');
+      // Show panel
+      $('letterPanel').classList.add('show');
+    });
+  });
+}
+renderAlphabet();
+updateAlphaProgress();
+
+// Letter panel: mark as learned toggle
+$('lpToggle').addEventListener('click',function(){
+  if(!currentLetter)return;
+  toggleLearned(currentLetter.letter);
+  updateAlphaProgress();
+  // Update this panel's toggle
+  const learned=isLearned(currentLetter.letter);
+  this.textContent=learned?'↩️ 标记未学会':'✅ 标记已学会';
+  this.className='lp-btn learned-toggle'+(learned?' is-learned':'');
+});
+
+// Letter panel: practice writing
+$('lpPractice').addEventListener('click',function(){
+  if(!currentLetter)return;
+  const l=currentLetter;
+  $('letterPanel').classList.remove('show');
+  practicedItems=[];
+  currentPy=l.letter;
+  currentCategory='alphabet';
+  roundBusy=false;
+  questionNum=0;
+  infiniteMode=false;
+  remainingQueue=[{pinyin:l.letter,category:'alphabet'}];
+  modeBadge.textContent='字母';
+  countdownDisplay.innerHTML='练习写字母';
+  startScreen.style.display='none';
+  overlay.className='dict-overlay active';
+  reviewScreen.classList.remove('active');
+  practiceArea.style.display='flex';
+  try{document.documentElement.requestFullscreen()}catch(e){}
+  try{document.documentElement.webkitRequestFullscreen()}catch(e){}
+  currentPy=l.letter;
+  currentCategory='alphabet';
+  questionNum=1;
+  remainingQueue=[];
+  setStatus('✏️',`写字母 ${l.letter} (${l.letter.toLowerCase()})`,'writing');
+  wrapper.className='canvas-wrapper writing';
+  // Show trace guide (faint letter overlay on canvas)
+  $('traceLetter').textContent=l.letter+l.letter.toLowerCase();
+  $('traceGuide').classList.remove('hidden');
+  // Also show reference in result overlay
+  answerText.textContent=l.letter+l.letter.toLowerCase();
+  answerText.style.fontSize='clamp(48px,14vw,80px)';
+  answerText.style.color='#c7d2fe';
+  resultOverlay.classList.add('show');
+  answerSub.textContent='照着写这个字母';
+  roundBusy=false;
+});
+
+// ─── Main category tabs ───────────────────────────────────
+document.querySelectorAll('.main-tab').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.main-tab').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+    const main=this.dataset.main;
+    document.getElementById('subPinyin').style.display=main==='pinyin'?'':'none';
+    document.getElementById('subEnglish').style.display=main==='english'?'':'none';
+    // Activate first sub-tab of the selected category
+    const first=document.querySelector(`#sub${main.charAt(0).toUpperCase()+main.slice(1)} .sub-tab`);
+    if(first)first.click();
+  });
+});
+
+// ─── Sub tabs (within a category) ──────────────────────────
+document.querySelectorAll('.sub-tab').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('sec-'+this.dataset.tab).classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  START SCREEN
+// ═══════════════════════════════════════════════════════════════
+document.querySelectorAll('.dict-start-category').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.dict-start-category').forEach(b=>b.classList.remove('selected'));
+    this.classList.add('selected');
+    selectedCategory=this.dataset.filter;
+    const label=this.querySelector('span:first-child').textContent;
+    startBtn.textContent=`开始练习 ${label}`;
+    startBtn.className='dict-start-btn ready';
+    startBtn.disabled=false;
+  });
+});
+
+document.querySelectorAll('.dict-mode-btn').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.dict-mode-btn').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active');
+    infiniteMode=this.dataset.mode==='infinite';
+  });
+});
+
+startBtn.addEventListener('click',function(){
+  if(this.disabled)return;
+  startDictation(selectedCategory);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  CANVAS
+// ═══════════════════════════════════════════════════════════════
+function resizeCanvas(){
+  const w=Math.min(wrapper.getBoundingClientRect().width-6,800);
+  canvas.width=w;
+  const vh=window.innerHeight;
+  let h;
+  if(vh<500) h=Math.min(w*0.55, vh*0.4);
+  else if(vh<900) h=Math.min(w*0.6, vh*0.5);
+  else h=Math.min(w*0.55, 400);
+  canvas.height=Math.max(160, h);
+  ctx.lineCap='round';ctx.lineJoin='round';ctx.lineWidth=4;ctx.strokeStyle='#6366f1';
+}
+resizeCanvas();window.addEventListener('resize',resizeCanvas);
+
+function gp(e){
+  const r=canvas.getBoundingClientRect();
+  const x=(e.clientX||e.touches[0].clientX)-r.left;
+  const y=(e.clientY||e.touches[0].clientY)-r.top;
+  return {x:x*(canvas.width/r.width),y:y*(canvas.height/r.height)};
+}
+
+let currentStroke=[],allStrokes=[];
+
+function sd(e){
+  if(roundBusy)return;
+  e.preventDefault();
+  drawing=true;if(!hasWritten)hasWritten=true;
+  const p=gp(e);lastX=p.x;lastY=p.y;
+  currentStroke=[{x:p.x,y:p.y}];
+  wrapper.className='canvas-wrapper writing';
+  resultOverlay.classList.remove('show');
+  clearTimeout(idleTimer);
+}
+function mv(e){
+  e.preventDefault();if(!drawing)return;
+  const p=gp(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.stroke();lastX=p.x;lastY=p.y;
+  if(currentStroke)currentStroke.push({x:p.x,y:p.y});
+}
+function ed(e){
+  e.preventDefault();drawing=false;
+  if(currentStroke&&currentStroke.length>0)allStrokes.push(currentStroke);
+  currentStroke=[];
+  if(hasWritten&&allStrokes.length>0)startIdleTimer();
+}
+canvas.addEventListener('mousedown',sd);canvas.addEventListener('mousemove',mv);
+canvas.addEventListener('mouseup',ed);canvas.addEventListener('mouseleave',ed);
+canvas.addEventListener('touchstart',sd,{passive:false});
+canvas.addEventListener('touchmove',mv,{passive:false});
+canvas.addEventListener('touchend',ed,{passive:false});
+
+function startIdleTimer(){
+  clearTimeout(idleTimer);
+  // Show countdown on canvas corner
+  const timerEl=document.getElementById('canvasTimer');
+  let sec=2;
+  timerEl.textContent=sec+'s';
+  timerEl.classList.add('show');
+  const iv=setInterval(()=>{
+    sec--;
+    if(sec>0){timerEl.textContent=sec+'s'}else{clearInterval(iv)}
+  },1000);
+  idleTimer=setTimeout(()=>{
+    clearInterval(iv);
+    timerEl.classList.remove('show');
+    if(!roundBusy)finishCurrent();
+  },2000);
+}
+
+function clearCanvas(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  hasWritten=false;wrapper.className='canvas-wrapper';
+  allStrokes=[];currentStroke=[];canvasImage=null;
+  clearTimeout(idleTimer);
+  document.getElementById('canvasTimer').classList.remove('show');
+}
+
+function setStatus(icon,text,cls){
+  statusIcon.textContent=icon;
+  statusText.textContent=text;
+  statusBar.className='dict-status'+(cls?' '+cls:'');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DICTATION CORE
+// ═══════════════════════════════════════════════════════════════
+function pickItem(){
+  if(infiniteMode){
+    // Pick random from full category list
+    const pool=dictFilter==='all'?allPinyin:allPinyin.filter(p=>p.category===dictFilter);
+    return pool.length?pool[Math.floor(Math.random()*pool.length)]:null;
+  }else{
+    if(remainingQueue.length===0)return null;
+    return remainingQueue.shift(); // take from shuffled queue
+  }
+}
+
+function newQuestion(){
+  const item=pickItem();
+  if(!item){
+    // All done (normal mode) → show review
+    showReview();
+    return;
+  }
+  currentPy=item.pinyin;currentCategory=item.category;
+  roundBusy=false;questionNum++;
+  clearCanvas();resultOverlay.classList.remove('show');
+  answerText.className='answer-text';
+  answerSub.textContent='';
+  nextBtn.classList.remove('show');
+  replayBtn.classList.remove('show');
+  updateCountdown();
+  setStatus('🔊','播放中...','listening');
+}
+
+async function listenThenWrite(){
+  if(!currentPy)return;
+  setStatus('🔊','播放中...','listening');
+  await playPinyin(currentPy);
+  if(roundBusy)return;
+  setStatus('✏️','写下来','writing');
+  wrapper.className='canvas-wrapper writing';
+  replayBtn.classList.add('show');
+}
+
+function captureCanvasImage(){
+  canvasImage=canvas.toDataURL('image/png');
+}
+
+function finishCurrent(){
+  if(!currentPy||roundBusy)return;
+  roundBusy=true;
+  clearTimeout(idleTimer);
+  replayBtn.classList.remove('show');
+  captureCanvasImage();
+
+  // Store current item
+  practicedItems.push({
+    pinyin:currentPy,
+    category:currentCategory,
+    image:canvasImage
+  });
+
+  // Clear canvas for next
+  clearCanvas();
+
+  // iOS: manual "继续下一题" button (autoplay needs user gesture)
+  // Others: auto-advance after short pause
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(isIOS){
+    setStatus('👆','点继续继续下一题','reveal');
+    nextBtn.textContent='继续下一题 ▶';
+    nextBtn.classList.add('show');
+  }else{
+    setStatus('⏩','下一题...','reveal');
+    setTimeout(nextRound,600);
+  }
+}
+
+function nextRound(){
+  clearInterval(autoNextTimer);
+  // Advance
+  nextBtn.classList.remove('show');
+  if(infiniteMode||remainingQueue.length>0){
+    newQuestion();
+    setTimeout(listenThenWrite,400);
+  }else{
+    // Normal mode, last item → show review
+    showReview();
+  }
+}
+nextBtn.addEventListener('click',nextRound);
+
+// Replay button
+replayBtn.addEventListener('click',function(){
+  if(currentPy) playPinyin(currentPy);
+});
+
+function updateCountdown(){
+  if(infiniteMode){
+    countdownDisplay.innerHTML=`第 <span>${questionNum}</span> 题`;
+  }else{
+    const total=questionNum+remainingQueue.length;
+    const done=questionNum;
+    countdownDisplay.innerHTML=`剩余 <span>${remainingQueue.length}</span> / ${total} 题`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  START / END DICTATION
+// ═══════════════════════════════════════════════════════════════
+function startDictation(category){
+  dictFilter=category;
+  // Build remaining queue (shuffle)
+  let pool=category==='all'?[...allPinyin]:allPinyin.filter(p=>p.category===category);
+  remainingQueue=pool.sort(()=>Math.random()-0.5);
+  practicedItems=[];
+  questionNum=0;
+
+  modeBadge.textContent=catName(category);
+  if(infiniteMode)countdownDisplay.innerHTML='♾️ 无限模式';
+  else countdownDisplay.innerHTML=`剩余 <span>${remainingQueue.length}</span> / ${remainingQueue.length} 题`;
+
+  // Show overlay, hide normal content
+  startScreen.style.display='none';
+  document.querySelector('.dict-topbar').style.display='flex';
+  overlay.className='dict-overlay active';
+  reviewScreen.classList.remove('active');
+  practiceArea.style.display='flex';
+
+  // Fullscreen
+  try{document.documentElement.requestFullscreen()}catch(e){}
+  try{document.documentElement.webkitRequestFullscreen()}catch(e){}
+
+  // Start first question
+  clearTimeout(idleTimer);
+  nextBtn.classList.remove('show');
+  newQuestion();
+  setTimeout(listenThenWrite,400);
+}
+
+function endDictation(){
+  clearTimeout(idleTimer);
+  replayBtn.classList.remove('show');
+  if(currentAudio){currentAudio.pause();currentAudio=null}
+  // Capture + store current item if not already stored
+  if(currentPy&&hasWritten){
+    const last=practicedItems[practicedItems.length-1];
+    if(!last||last.pinyin!==currentPy){
+      captureCanvasImage();
+      practicedItems.push({
+        pinyin:currentPy,
+        category:currentCategory,
+        image:canvasImage
+      });
+    }
+  }
+  // Exit fullscreen
+  try{document.exitFullscreen()}catch(e){}
+  try{document.webkitExitFullscreen()}catch(e){}
+  // Show review
+  showReview();
+}
+endBtn.addEventListener('click',endDictation);
+
+// ═══════════════════════════════════════════════════════════════
+//  REVIEW SCREEN
+// ═══════════════════════════════════════════════════════════════
+function showReview(){
+  $('traceGuide').classList.add('hidden');
+  practiceArea.style.display='none';
+  document.querySelector('.dict-topbar').style.display='none';
+  reviewScreen.classList.add('active');
+
+  reviewSub.textContent=`共练习了 ${practicedItems.length} 个拼音，请批改：`;
+
+  reviewGrid.innerHTML=practicedItems.map((item,i)=>{
+    const hasImg=item.image&&item.image.length>100;
+    const cIcon=localStorage.getItem('hermes_icon_correct');
+    const wIcon=localStorage.getItem('hermes_icon_wrong');
+    return `
+      <div class="dict-review-card" data-idx="${i}">
+        <div class="py">${dn(item.pinyin)}</div>
+        ${hasImg
+          ? `<img class="py-img" src="${item.image}" alt="${item.pinyin}">`
+          : `<div class="py-empty">未书写</div>`
+        }
+        <div class="py-grade">
+          <button class="g-yes" data-idx="${i}" data-grade="correct" style="${cIcon?`background-image:url('${cIcon}');background-size:contain;background-repeat:no-repeat;background-position:center;font-size:0`:'font-size:22px'}">${cIcon?'':'✔'}</button>
+          <button class="g-no" data-idx="${i}" data-grade="wrong" style="${wIcon?`background-image:url('${wIcon}');background-size:contain;background-repeat:no-repeat;background-position:center;font-size:0`:'font-size:22px'}">${wIcon?'':'✘'}</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Grade buttons
+  reviewGrid.querySelectorAll('.py-grade button').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      const idx=parseInt(this.dataset.idx);
+      const grade=this.dataset.grade;
+      const isCorrect=grade==='correct';
+      practicedItems[idx].correct=isCorrect;
+      // Update button UI
+      const card=this.closest('.dict-review-card');
+      card.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      this.classList.add('active');
+      calcReviewScore();
+    });
+  });
+
+  calcReviewScore();
+}
+
+function calcReviewScore(){
+  const graded=practicedItems.filter(i=>i.correct!=null);
+  const correct=graded.filter(i=>i.correct).length;
+  if(graded.length===practicedItems.length&&practicedItems.length>0){
+    reviewSummary.innerHTML=`得分：<span>${correct}/${practicedItems.length}</span> ⭐`;
+    reviewCertBtn.style.display='inline-block';
+  }else{
+    reviewSummary.innerHTML=`已批改 ${graded.length}/${practicedItems.length}`;
+    reviewCertBtn.style.display='none';
+  }
+}
+
+function showCertificate(correct,total){
+  const pct=correct/total;
+  certScore.textContent=`${correct} / ${total}`;
+  let stars,msg;
+  if(pct>=0.9){stars='⭐⭐⭐⭐⭐';msg='太棒了！几乎是满分！🎉'}
+  else if(pct>=0.7){stars='⭐⭐⭐⭐';msg='很不错！继续加油！💪'}
+  else if(pct>=0.5){stars='⭐⭐⭐';msg='还可以，多练练会更好！'}
+  else if(pct>=0.3){stars='⭐⭐';msg='需要更多练习哦！📖'}
+  else{stars='⭐';msg='加油，从今天开始认真练习！'}
+  certStars.textContent=stars;
+  certMsg.textContent=msg;
+  certDetail.textContent=`共练习 ${total} 个拼音，正确 ${correct} 个`;
+  certOverlay.classList.add('show');
+  // Show share button if Web Share API is available
+  if(navigator.share){
+    certShareBtn.style.display='inline-flex';
+  }else{
+    certShareBtn.style.display='none';
+  }
+}
+
+certBtn.addEventListener('click',function(){
+  certOverlay.classList.remove('show');
+  // Exit fullscreen + go home
+  try{document.exitFullscreen()}catch(e){}
+  try{document.webkitExitFullscreen()}catch(e){}
+  document.querySelector('.dict-topbar').style.display='';
+  overlay.className='dict-overlay';
+  startScreen.style.display='flex';
+  document.querySelectorAll('.dict-start-category').forEach(b=>b.classList.remove('selected'));
+  startBtn.textContent='请先选择范围';
+  startBtn.className='dict-start-btn idle';
+  startBtn.disabled=true;
+  selectedCategory='all';
+  practicedItems=[];
+});
+
+// Save certificate as image
+certSaveBtn.addEventListener('click',async function(){
+  const modal=document.getElementById('certModal');
+  try{
+    const canvas=await html2canvas(modal,{
+      backgroundColor:'#fff',
+      scale:2,
+      useCORS:true,
+      logging:false
+    });
+    canvas.toBlob(function(blob){
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download='拼音证书.png';
+      a.click();
+      URL.revokeObjectURL(url);
+    },'image/png');
+  }catch(e){
+    alert('保存失败: '+e.message);
+  }
+});
+
+// Share certificate
+certShareBtn.addEventListener('click',async function(){
+  const modal=document.getElementById('certModal');
+  try{
+    const canvas=await html2canvas(modal,{
+      backgroundColor:'#fff',
+      scale:2,
+      useCORS:true,
+      logging:false
+    });
+    canvas.toBlob(async function(blob){
+      try{
+        await navigator.share({
+          title:'拼音练习证书',
+          text:`拼音练习完成！得分：${document.getElementById('certScore').textContent}`,
+          files:[new File([blob],'拼音证书.png',{type:'image/png'})]
+        });
+      }catch(e){
+        if(e.name!=='AbortError'){
+          alert('分享失败: '+e.message);
+        }
+      }
+    },'image/png');
+  }catch(e){
+    alert('截图失败: '+e.message);
+  }
+});
+
+reviewBackBtn.addEventListener('click',function(){
+  $('traceGuide').classList.add('hidden');
+  certOverlay.classList.remove('show');
+  // Exit fullscreen
+  try{document.exitFullscreen()}catch(e){}
+  try{document.webkitExitFullscreen()}catch(e){}
+  // Hide overlay, show normal content
+  document.querySelector('.dict-topbar').style.display='';
+  overlay.className='dict-overlay';
+  startScreen.style.display='flex';
+  // Reset start button
+  document.querySelectorAll('.dict-start-category').forEach(b=>b.classList.remove('selected'));
+  startBtn.textContent='请先选择范围';
+  startBtn.className='dict-start-btn idle';
+  startBtn.disabled=true;
+  selectedCategory='all';
+  practicedItems=[];
+});
+
+// Certificate button
+reviewCertBtn.addEventListener('click',function(){
+  const correct=practicedItems.filter(i=>i.correct).length;
+  showCertificate(correct,practicedItems.length);
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  KEYBOARD SHORTCUT
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'&&overlay.classList.contains('active')){
+    endDictation();
+  }
+  if(e.key===' '&&e.target.tagName!=='INPUT'&&e.target.tagName!=='TEXTAREA'){
+    e.preventDefault();
+    const dt=document.querySelector('.tab[data-tab="dictation"]');
+    if(!dt.classList.contains('active')){dt.click()}
+    else if(!overlay.classList.contains('active')){
+      if(!startBtn.disabled)startBtn.click();
+    }
+  }
+  if(e.key==='Enter'&&nextBtn.classList.contains('show')){
+    nextBtn.click();
+  }
+});
+</script>
+
+</body>
+</html>
