@@ -1,0 +1,344 @@
+/* ═══════════════════════════════════════════════════════════════
+   SIMPLE-STUDY v2
+   ═══════════════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px;-webkit-tap-highlight-color:transparent;height:100%}
+button{background:none;border:none;cursor:pointer;font-family:inherit;color:inherit}
+body{
+  font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:#f0f4ff;color:#1e293b;min-height:100dvh;overflow-x:hidden;
+  user-select:none;-webkit-user-select:none;
+  display:flex;flex-direction:column
+}
+img,a{-webkit-user-drag:none;user-select:none}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE TOPBAR (shown <768px)
+   ═══════════════════════════════════════════════════════════════ */
+.topbar{display:none;position:fixed;top:0;left:0;right:0;z-index:100;background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.topbar-row{display:flex;gap:6px;padding:max(6px,env(safe-area-inset-top,6px)) 12px 6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.topbar-row::-webkit-scrollbar{display:none}
+.topbar-main{gap:8px}
+.top-main{
+  padding:6px 18px;border:none;border-radius:8px;cursor:pointer;
+  font-size:14px;font-weight:700;white-space:nowrap;
+  background:rgba(255,255,255,.2);color:#fff;transition:all .2s;letter-spacing:.5px
+}
+.top-main.active{background:#fff;color:#4f46e5;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+.top-main.disabled{opacity:.3;cursor:default;background:none}
+.topbar-subs{flex-wrap:wrap;gap:8px;padding:2px 12px 10px}
+.topbar-subs>[data-nav-group]{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.top-group-label{font-size:11px;font-weight:800;color:rgba(255,255,255,.8);padding:4px 2px 0;white-space:nowrap;letter-spacing:1px}
+.top-leaf{
+  padding:4px 14px;border:1.5px solid rgba(255,255,255,.35);border-radius:6px;cursor:pointer;
+  font-size:13px;font-weight:600;white-space:nowrap;
+  background:rgba(255,255,255,.08);color:#fff;transition:all .2s
+}
+.top-leaf.active{background:#fff;color:#4f46e5;border-color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+
+/* ═══════════════════════════════════════════════════════════════
+   DESKTOP SIDEBAR (shown >=768px)
+   ═══════════════════════════════════════════════════════════════ */
+.sidebar{
+  display:none;position:fixed;top:0;left:0;bottom:0;width:220px;
+  background:linear-gradient(180deg,#6366f1,#4f46e5);z-index:100;
+  overflow-y:auto;overflow-x:hidden;
+  box-shadow:2px 0 12px rgba(99,102,241,.3)
+}
+.sidebar-inner{padding:max(20px,env(safe-area-inset-top)) 0 20px}
+.sidebar-brand{
+  font-size:18px;font-weight:800;color:#fff;text-align:center;
+  padding:0 16px 16px;border-bottom:1px solid rgba(255,255,255,.15);margin-bottom:8px
+}
+
+/* Nav tree */
+.nav-tree{padding:0 8px}
+.nav-item{
+  display:block;width:100%;text-align:left;padding:10px 16px;
+  border:none;border-radius:8px;cursor:pointer;
+  font-size:14px;font-weight:500;transition:all .2s;margin-bottom:2px;
+  background:none;color:inherit
+}
+.nav-top{color:#fff;font-weight:700;font-size:15px;background:rgba(255,255,255,.15)}
+.nav-top.active{background:rgba(255,255,255,.25)}
+.nav-top.disabled{opacity:.3;cursor:default;background:none}
+.nav-group{margin:8px 0}
+.nav-group-title{
+  font-size:11px;font-weight:800;color:rgba(255,255,255,.75);
+  padding:8px 16px 4px;letter-spacing:1.5px
+}
+.nav-leaf{color:rgba(255,255,255,.88);padding:8px 16px 8px 20px;font-size:13px;font-weight:600;border-radius:6px}
+.nav-leaf:hover{background:rgba(255,255,255,.12);color:#fff}
+.nav-leaf.active{background:#fff;color:#4f46e5;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.nav-children{padding-left:12px}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN CONTENT
+   ═══════════════════════════════════════════════════════════════ */
+.content{
+  flex:1;padding:16px;width:100%;
+  animation:fadeSlide .25s ease;
+  display:flex;flex-direction:column;align-items:center
+}
+.content>*{max-width:800px;width:100%}
+
+/* ═══════════════════════════════════════════════════════════════
+   SECTION TITLES
+   ═══════════════════════════════════════════════════════════════ */
+.section-title{font-size:clamp(14px,3.5vw,16px);font-weight:700;color:#6366f1;margin:0 0 4px;padding-left:4px}
+.section-subtitle{font-size:clamp(11px,2.8vw,13px);color:#94a3b8;margin-bottom:12px;padding-left:4px}
+
+/* ═══════════════════════════════════════════════════════════════
+   PINYIN GRID
+   ═══════════════════════════════════════════════════════════════ */
+.pinyin-grid{
+  display:grid;gap:clamp(6px,1.5vw,10px);
+  grid-template-columns:repeat(auto-fill,minmax(clamp(64px,16vw,88px),1fr));
+  margin-bottom:20px
+}
+.pinyin-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:clamp(10px,2.5vw,16px) clamp(4px,1vw,8px) clamp(6px,1.5vw,10px);
+  border-radius:12px;border:none;cursor:pointer;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);
+  transition:all .2s;position:relative;min-height:clamp(54px,14vw,72px);
+  -webkit-tap-highlight-color:transparent
+}
+.pinyin-card:active{transform:scale(.92)}
+.pinyin-card.playing{background:#6366f1;color:#fff;transform:scale(1.05);box-shadow:0 4px 16px rgba(99,102,241,.35)}
+.pinyin-card .pinyin-text{font-size:clamp(18px,4.5vw,24px);font-weight:700;line-height:1.2}
+.pinyin-card .play-icon{font-size:clamp(9px,2.2vw,12px);color:#94a3b8;margin-top:4px}
+.pinyin-card.playing .play-icon{color:rgba(255,255,255,.7)}
+.pinyin-card.shengmu{border-left:3px solid #6366f1}
+.pinyin-card.yunmu{border-left:3px solid #22c55e}
+.pinyin-card.zhengti{border-left:3px solid #f59e0b}
+
+/* ═══════════════════════════════════════════════════════════════
+   PLACEHOLDER PAGES
+   ═══════════════════════════════════════════════════════════════ */
+.placeholder-page{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;text-align:center;animation:fadeSlide .3s ease
+}
+.placeholder-page .icon{font-size:48px;margin-bottom:12px}
+.placeholder-page h2{font-size:20px;font-weight:700;color:#1e293b;margin-bottom:6px}
+.placeholder-page p{font-size:14px;color:#94a3b8;max-width:360px;line-height:1.6}
+.placeholder-page .todo-list{margin-top:16px;text-align:left;color:#64748b;font-size:13px;line-height:1.8}
+
+/* ═══════════════════════════════════════════════════════════════
+   DICTATION (reused from v1, adapted for v2)
+   ═══════════════════════════════════════════════════════════════ */
+.dict-start{
+  max-width:500px;margin:20px auto;background:#fff;border-radius:16px;
+  padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.06);text-align:center
+}
+.dict-start-icon{font-size:36px;margin-bottom:8px}
+.dict-start-title{font-size:18px;font-weight:700;color:#1e293b;margin-bottom:4px}
+.dict-start-sub{font-size:13px;color:#94a3b8;margin-bottom:16px}
+.dict-start-categories{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px}
+.dict-start-category{
+  padding:8px 16px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;
+  font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;color:#1e293b
+}
+.dict-start-category:hover{border-color:#6366f1}
+.dict-start-category.selected{border-color:#6366f1;background:#eef2ff;color:#6366f1}
+.dict-mode-row{display:flex;gap:10px;justify-content:center;margin-bottom:16px}
+.dict-mode-btn{
+  padding:8px 20px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;
+  font-size:14px;font-weight:600;cursor:pointer;transition:all .2s
+}
+.dict-mode-btn.active{border-color:#6366f1;background:#6366f1;color:#fff}
+.dict-start-btn{
+  padding:12px 36px;border:none;border-radius:12px;font-size:16px;font-weight:700;
+  cursor:pointer;transition:all .2s;color:#fff
+}
+.dict-start-btn.idle{background:#cbd5e1;cursor:default}
+.dict-start-btn.ready{background:linear-gradient(135deg,#6366f1,#8b5cf6);box-shadow:0 4px 16px rgba(99,102,241,.3)}
+.dict-start-btn.ready:active{transform:scale(.95)}
+
+/* Dictation fullscreen overlay */
+.dict-overlay{
+  display:none;position:fixed;inset:0;z-index:1000;
+  background:#f0f4ff;flex-direction:column;
+  overscroll-behavior:none
+}
+.dict-overlay.active{display:flex}
+.dict-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  background:#fff;padding:max(8px,env(safe-area-inset-top)) 16px 8px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);flex-shrink:0
+}
+.dict-topbar-left{display:flex;align-items:center;gap:10px}
+.dict-mode-badge{
+  padding:4px 12px;border-radius:6px;background:#eef2ff;color:#6366f1;
+  font-size:13px;font-weight:700
+}
+.dict-countdown{font-size:13px;color:#94a3b8}
+.dict-end-btn{
+  padding:6px 16px;border:1.5px solid #e2e8f0;border-radius:8px;
+  background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:#64748b
+}
+.dict-end-btn:active{background:#f1f5f9}
+
+.dict-practice{
+  flex:1;display:none;flex-direction:column;align-items:center;
+  justify-content:center;padding:16px;gap:12px
+}
+.dict-status{
+  display:flex;align-items:center;gap:8px;font-size:16px;
+  font-weight:700;color:#1e293b;margin-bottom:4px
+}
+.dict-status .state-icon{font-size:18px}
+.dict-status .state-text{font-size:clamp(14px,3.5vw,18px)}
+.dict-replay-btn{
+  display:none;padding:4px 14px;border:1.5px solid #e2e8f0;border-radius:8px;
+  background:#fff;font-size:12px;font-weight:600;cursor:pointer;color:#6366f1
+}
+.dict-replay-btn.show{display:inline-block}
+
+.canvas-wrapper{
+  position:relative;width:min(600px,90vw);aspect-ratio:2/1;
+  background:#fff;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);
+  overflow:hidden;border:2px solid #e2e8f0;transition:border-color .2s;
+  display:flex;align-items:center;justify-content:center
+}
+.canvas-wrapper.writing{border-color:#a5b4fc}
+.canvas-label{
+  position:absolute;top:8px;left:12px;font-size:12px;color:#94a3b8;z-index:2;pointer-events:none
+}
+.handwrite-canvas{
+  width:100%;height:100%;display:block;touch-action:none;cursor:crosshair;
+  position:absolute;top:0;left:0;z-index:10
+}
+.dict-result-overlay{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  display:none;align-items:center;justify-content:center;
+  flex-direction:column;z-index:5;pointer-events:none
+}
+.dict-result-overlay.show{display:flex}
+.answer-text{font-size:clamp(40px,12vw,70px);font-weight:800;line-height:1}
+.answer-sub{font-size:14px;color:#94a3b8;margin-top:4px}
+.trace-guide{
+  position:absolute;top:0;left:0;right:0;bottom:0;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:none;z-index:4;opacity:.15
+}
+.trace-guide.hidden{display:none}
+.trace-guide span{font-size:clamp(100px,25vw,180px);font-weight:800;color:#6366f1;line-height:1;font-family:monospace}
+
+.dict-hint-btn{
+  display:none;padding:8px 24px;border:none;border-radius:10px;
+  background:#f1f5f9;color:#64748b;font-size:14px;font-weight:600;cursor:pointer
+}
+.dict-next-btn{
+  display:none;padding:10px 28px;border:none;border-radius:10px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;
+  box-shadow:0 4px 16px rgba(99,102,241,.3)
+}
+.dict-next-btn.show{display:inline-block}
+.dict-next-btn:active{transform:scale(.95)}
+
+/* Review screen */
+.dict-review{
+  display:none;flex-direction:column;align-items:center;
+  padding:24px 16px;overflow-y:auto;flex:1
+}
+.dict-review.active{display:flex}
+.dict-review-title{font-size:20px;font-weight:800;color:#1e293b;margin-bottom:4px}
+.dict-review-sub{font-size:13px;color:#94a3b8;margin-bottom:16px}
+.dict-review-grid{
+  width:100%;max-width:480px;display:flex;flex-direction:column;gap:8px;margin-bottom:16px
+}
+.dict-review-card{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.04);
+  border:1px solid #f1f5f9
+}
+.dict-review-card .py{font-size:18px;font-weight:700;color:#1e293b;width:50px;text-align:center;flex-shrink:0}
+.dict-review-card .py-img{width:48px;height:48px;border-radius:8px;object-fit:contain;border:1px solid #e2e8f0;background:#fafafa}
+.dict-review-card .py-empty{width:48px;height:48px;border-radius:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:11px;color:#cbd5e1}
+.dict-review-card .py-grade{display:flex;gap:6px;margin-left:auto}
+.dict-review-card .py-grade button{
+  width:44px;height:44px;border-radius:50%;border:2px solid #e2e8f0;
+  font-size:20px;cursor:pointer;transition:all .15s;background:#fff;
+  display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent
+}
+.dict-review-card .py-grade button:active{transform:scale(.85)}
+.dict-review-card .py-grade .g-yes.active{background:#dcfce7;color:#16a34a;border-color:#86efac}
+.dict-review-card .py-grade .g-no.active{background:#fee2e2;color:#dc2626;border-color:#fca5a5}
+.dict-review-summary{font-size:clamp(16px,4vw,20px);font-weight:700;color:#1e293b;margin:8px 0}
+.dict-review-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.dict-review-back-btn,.dict-action-btn{
+  padding:12px 36px;border-radius:12px;border:none;
+  font-size:16px;font-weight:600;cursor:pointer;transition:all .2s
+}
+.dict-review-back-btn{
+  background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+  box-shadow:0 4px 16px rgba(99,102,241,.3)
+}
+.dict-action-btn{background:#f1f5f9;color:#64748b}
+.dict-action-btn:active,.dict-review-back-btn:active{transform:scale(.95)}
+
+/* Certificate modal */
+.cert-overlay{
+  display:none;position:fixed;inset:0;z-index:1100;
+  background:rgba(0,0,0,.4);backdrop-filter:blur(8px);
+  align-items:center;justify-content:center;padding:16px
+}
+.cert-overlay.show{display:flex}
+.cert-modal{
+  background:#fff;border-radius:20px;padding:32px 24px 24px;
+  max-width:400px;width:100%;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.15);
+  border:4px solid transparent;background-clip:padding-box;
+  position:relative;animation:certPop .35s ease
+}
+.cert-modal::before{
+  content:'';position:absolute;inset:-4px;border-radius:22px;
+  background:linear-gradient(135deg,#6366f1,#22c55e,#f59e0b,#ef4444,#6366f1);
+  background-size:400% 400%;z-index:-1;animation:gradientShift 3s ease infinite
+}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes certPop{0%{opacity:0;transform:scale(.8) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+.cert-title{font-size:24px;font-weight:800;color:#1e293b;margin-bottom:4px}
+.cert-score{font-size:48px;font-weight:800;color:#6366f1;margin:8px 0}
+.cert-score span{font-size:20px;font-weight:600;color:#94a3b8}
+.cert-stars{font-size:28px;margin:4px 0 8px}
+.cert-msg{font-size:15px;color:#64748b;margin-bottom:4px}
+.cert-detail{font-size:12px;color:#94a3b8;margin-bottom:12px}
+.cert-btn,.cert-save-btn,.cert-share-btn{
+  padding:12px 24px;border-radius:12px;border:none;
+  font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;margin:4px
+}
+.cert-btn{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.3)}
+.cert-save-btn{border:1.5px solid #e2e8f0;background:#fff;color:#64748b}
+.cert-share-btn{background:#6366f1;color:#fff}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes fadeSlide{0%{opacity:0;transform:translateY(8px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════════ */
+@media(max-width:767px){
+  .sidebar{display:none !important}
+  .topbar{display:block}
+  .content{max-width:100%;padding:12px;margin-top:60px}
+}
+@media(min-width:768px){
+  .topbar{display:none !important}
+  .sidebar{display:block}
+  .content{margin-left:220px;padding:24px;padding-top:calc(24px + env(safe-area-inset-top));width:calc(100% - 220px)}
+}
+@media(min-width:1024px){
+  .content{padding:32px}
+}
+@media(min-width:1200px){
+  .sidebar{width:240px}
+  .content{margin-left:240px;width:calc(100% - 240px)}
+}

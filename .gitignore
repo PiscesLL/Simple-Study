@@ -4,8 +4,10 @@ __pycache__/
 venv/
 .env
 
-# Audio files (large, should be managed separately)
-audio/*.mp3
+# Audio files are committed in full (yinjie/ tones/ en/ subdirs) for site integrity
+
+# Local DB contains user data & auth tokens - never commit
+study.db
 
 # OS
 .DS_Store
