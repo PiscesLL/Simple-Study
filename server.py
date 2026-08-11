@@ -44,6 +44,32 @@ import threading
 _admin_tokens = {}
 _admin_lock = threading.Lock()
 
+# Admin login attempt limiting: {ip: {'count': n, 'lock_until': ts}}
+_admin_attempts = {}
+_ADMIN_MAX_ATTEMPTS = 5
+_ADMIN_LOCK_SECONDS = 600
+
+def _check_admin_lock(ip):
+    with _admin_lock:
+        entry = _admin_attempts.get(ip)
+        if entry and entry['lock_until'] > time.time():
+            remain = int(entry['lock_until'] - time.time())
+            return f'尝试次数过多，请 {remain//60} 分钟后再试'
+    return None
+
+def _record_admin_failure(ip):
+    with _admin_lock:
+        entry = _admin_attempts.get(ip) or {'count': 0, 'lock_until': 0}
+        entry['count'] += 1
+        if entry['count'] >= _ADMIN_MAX_ATTEMPTS:
+            entry['lock_until'] = time.time() + _ADMIN_LOCK_SECONDS
+            entry['count'] = 0
+        _admin_attempts[ip] = entry
+
+def _clear_admin_failures(ip):
+    with _admin_lock:
+        _admin_attempts.pop(ip, None)
+
 def _new_admin_token():
     tok = uuid.uuid4().hex
     with _admin_lock:
@@ -375,10 +401,16 @@ def api_stats(user):
 # ═══════════════════════════════════════════════════════════════
 @app.route('/api/admin/login', methods=['POST'])
 def api_admin_login():
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    locked = _check_admin_lock(ip)
+    if locked:
+        return jsonify({'error': locked}), 429
     data = request.get_json() or {}
     pw = data.get('password', '')
     if not check_admin_password(pw):
+        _record_admin_failure(ip)
         return jsonify({'error': '管理密码错误'}), 401
+    _clear_admin_failures(ip)
     return jsonify({'token': _new_admin_token()})
 
 @app.route('/api/admin/logout', methods=['POST'])
@@ -413,7 +445,7 @@ def api_admin_users():
                    (SELECT COUNT(*) FROM diagnosis_results g WHERE g.user_id=u.id) AS diag_count,
                    (SELECT IFNULL(MAX(l2.listened_at), u.created_at) FROM listening_records l2 WHERE l2.user_id=u.id) AS last_active
             FROM users u
-            ORDER BY u.id
+            ORDER BY last_active DESC, u.id
         """).fetchall()
     return jsonify({'users': [dict(r) for r in rows]})
 

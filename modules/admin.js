@@ -158,8 +158,22 @@
       renderUserDetail(data);
     }).catch(e=>{
       if(e.message.includes('过期') || e.message.includes('验证')) logout();
-      else alert(e.message);
+      else showToast(e.message);
     });
+  }
+
+  function showToast(msg){
+    let t = document.getElementById('admToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'admToast';
+      t.style.cssText = 'position:fixed;left:50%;top:60px;transform:translateX(-50%);z-index:10000;background:#1e293b;color:#fff;border-radius:10px;padding:10px 20px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;transition:opacity .25s;pointer-events:none';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(()=>{ t.style.opacity = '0' }, 2500);
   }
 
   function renderUserDetail(d){
