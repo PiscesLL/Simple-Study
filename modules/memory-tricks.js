@@ -17,6 +17,7 @@ function shuffleArray(arr){
 }
 
 function playPinyin(py){
+  if(window.api && typeof window.api.track === 'function') window.api.track('memory-tricks', py);
   if(window._mtAudio){ window._mtAudio.pause(); window._mtAudio=null }
   const a = new Audio(`../audio/${py}.mp3`);
   window._mtAudio = a;

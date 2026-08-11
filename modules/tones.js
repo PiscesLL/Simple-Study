@@ -54,6 +54,7 @@
   }
 
   function playTone(final, tone){
+    if(window.api && typeof window.api.track === 'function') window.api.track('tones', final + tone);
     if(currentAudio){ currentAudio.pause(); currentAudio=null }
     const a = new Audio(`audio/tones/${final}${tone}.mp3`);
     currentAudio = a;

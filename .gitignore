@@ -8,6 +8,11 @@ venv/
 
 # Local DB contains user data & auth tokens - never commit
 study.db
+study.db-shm
+study.db-wal
+
+# Admin password file (contains password hash) - never commit
+admin.json
 
 # OS
 .DS_Store

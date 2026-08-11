@@ -542,12 +542,18 @@
           }
           const correct_count = practicedItems.filter(i => i.correct === true).length;
           const wrong_count = practicedItems.filter(i => i.correct === false).length;
+          const details = practicedItems.map(i => ({
+            item: i.pinyin,
+            category: i.category || '',
+            correct: i.correct === true
+          }));
           window.api.saveDictation({
             mode: mode,
             category: category,
             total_questions: total,
             correct_count: correct_count,
-            wrong_count: wrong_count
+            wrong_count: wrong_count,
+            details: details
           });
         } catch(e){
           console.warn('[dictation] Failed to save session:', e);

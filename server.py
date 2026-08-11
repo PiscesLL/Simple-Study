@@ -3,7 +3,7 @@ SIMPLE-STUDY Backend — User accounts + learning analytics
 Flask + sqlite3 + werkzeug (zero extra dependencies)
 """
 from flask import Flask, request, jsonify, send_from_directory
-import os, uuid, sqlite3, json
+import os, uuid, sqlite3, json, time
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -12,7 +12,56 @@ app = Flask(__name__)
 BASE = os.path.dirname(__file__)
 DB_PATH = os.path.join(BASE, 'study.db')
 ICONS_DIR = os.path.join(BASE, 'icons')
+ADMIN_FILE = os.path.join(BASE, 'admin.json')
 os.makedirs(ICONS_DIR, exist_ok=True)
+
+# ─── Admin password management ──────────────────────────────
+# First-run: created from ADMIN_PASSWORD env var, default 'admin123'.
+# Change it after login via POST /api/admin/password, or by editing admin.json.
+def init_admin():
+    if os.path.exists(ADMIN_FILE):
+        return
+    pw = os.environ.get('ADMIN_PASSWORD', 'admin123')
+    with open(ADMIN_FILE, 'w') as f:
+        json.dump({'password_hash': generate_password_hash(pw)}, f)
+    if not os.environ.get('ADMIN_PASSWORD'):
+        app.logger.warning('ADMIN_PASSWORD not set — using default admin123. Change it via admin panel.')
+
+def check_admin_password(pw):
+    try:
+        with open(ADMIN_FILE) as f:
+            data = json.load(f)
+        return check_password_hash(data.get('password_hash', ''), pw)
+    except Exception:
+        return False
+
+def set_admin_password(pw):
+    with open(ADMIN_FILE, 'w') as f:
+        json.dump({'password_hash': generate_password_hash(pw)}, f)
+
+# Admin tokens — in-memory, 24h expiry (server restart requires re-login)
+import threading
+_admin_tokens = {}
+_admin_lock = threading.Lock()
+
+def _new_admin_token():
+    tok = uuid.uuid4().hex
+    with _admin_lock:
+        _admin_tokens[tok] = time.time() + 86400
+    return tok
+
+def require_admin(f):
+    @wraps(f)
+    def wrapper(*a, **kw):
+        token = request.headers.get('X-Admin-Token', '')
+        with _admin_lock:
+            exp = _admin_tokens.get(token)
+            if exp is None or exp < time.time():
+                if exp is not None:
+                    _admin_tokens.pop(token, None)
+                return jsonify({'error': '管理密码未验证或已过期'}), 401
+        return f(*a, **kw)
+    return wrapper
 
 # ═══════════════════════════════════════════════════════════════
 #  DATABASE
@@ -64,10 +113,17 @@ def init_db():
                 total_questions INTEGER NOT NULL DEFAULT 0,
                 correct_count INTEGER NOT NULL DEFAULT 0,
                 wrong_count INTEGER NOT NULL DEFAULT 0,
+                details TEXT DEFAULT '[]',
                 completed_at TEXT DEFAULT (datetime('now'))
             );
         """)
 init_db()
+# Migration: add details column to dictation_sessions for older databases
+with get_db() as db:
+    cols = [r[1] for r in db.execute("PRAGMA table_info(dictation_sessions)").fetchall()]
+    if 'details' not in cols:
+        db.execute("ALTER TABLE dictation_sessions ADD COLUMN details TEXT DEFAULT '[]'")
+init_admin()
 
 # ═══════════════════════════════════════════════════════════════
 #  AUTH MIDDLEWARE
@@ -234,12 +290,15 @@ def api_save_dictation(user):
     total_q = data.get('total_questions', 0)
     correct = data.get('correct_count', 0)
     wrong = data.get('wrong_count', 0)
+    details = data.get('details', [])
     if total_q == 0:
         return jsonify({'error': '缺少数据'}), 400
+    if not isinstance(details, list):
+        details = []
     with get_db() as db:
         cur = db.execute(
-            "INSERT INTO dictation_sessions (user_id, mode, category, total_questions, correct_count, wrong_count) VALUES (?,?,?,?,?,?)",
-            (user['id'], mode, category, total_q, correct, wrong)
+            "INSERT INTO dictation_sessions (user_id, mode, category, total_questions, correct_count, wrong_count, details) VALUES (?,?,?,?,?,?,?)",
+            (user['id'], mode, category, total_q, correct, wrong, json.dumps(details, ensure_ascii=False))
         )
         session_id = cur.lastrowid
     return jsonify({'session_id': session_id}), 201
@@ -267,6 +326,111 @@ def api_stats(user):
         'total_questions': total_q,
         'total_correct': total_correct,
         'accuracy': accuracy
+    })
+
+# ═══════════════════════════════════════════════════════════════
+#  ADMIN API
+# ═══════════════════════════════════════════════════════════════
+@app.route('/api/admin/login', methods=['POST'])
+def api_admin_login():
+    data = request.get_json() or {}
+    pw = data.get('password', '')
+    if not check_admin_password(pw):
+        return jsonify({'error': '管理密码错误'}), 401
+    return jsonify({'token': _new_admin_token()})
+
+@app.route('/api/admin/logout', methods=['POST'])
+@require_admin
+def api_admin_logout():
+    token = request.headers.get('X-Admin-Token', '')
+    with _admin_lock:
+        _admin_tokens.pop(token, None)
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/password', methods=['POST'])
+@require_admin
+def api_admin_change_password():
+    data = request.get_json() or {}
+    old_pw = data.get('old_password', '')
+    new_pw = data.get('new_password', '')
+    if len(new_pw) < 4:
+        return jsonify({'error': '新密码至少4位'}), 400
+    if not check_admin_password(old_pw):
+        return jsonify({'error': '原密码错误'}), 401
+    set_admin_password(new_pw)
+    return jsonify({'ok': True})
+
+@app.route('/api/admin/users')
+@require_admin
+def api_admin_users():
+    with get_db() as db:
+        rows = db.execute("""
+            SELECT u.id, u.username, u.display_name, u.created_at,
+                   (SELECT COUNT(*) FROM listening_records l WHERE l.user_id=u.id) AS listen_count,
+                   (SELECT COUNT(*) FROM dictation_sessions d WHERE d.user_id=u.id) AS dict_count,
+                   (SELECT COUNT(*) FROM diagnosis_results g WHERE g.user_id=u.id) AS diag_count,
+                   (SELECT IFNULL(MAX(l2.listened_at), u.created_at) FROM listening_records l2 WHERE l2.user_id=u.id) AS last_active
+            FROM users u
+            ORDER BY u.id
+        """).fetchall()
+    return jsonify({'users': [dict(r) for r in rows]})
+
+@app.route('/api/admin/users/<int:uid>')
+@require_admin
+def api_admin_user_detail(uid):
+    with get_db() as db:
+        user = db.execute("SELECT id, username, display_name, created_at FROM users WHERE id=?", (uid,)).fetchone()
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+
+        # Listening summary + recent
+        listen_total = db.execute("SELECT COUNT(*) as c FROM listening_records WHERE user_id=?", (uid,)).fetchone()['c']
+        listen_by_cat = db.execute(
+            "SELECT category, item, COUNT(*) as c FROM listening_records WHERE user_id=? GROUP BY category, item ORDER BY c DESC LIMIT 100",
+            (uid,)
+        ).fetchall()
+        listen_recent = db.execute(
+            "SELECT category, item, listened_at FROM listening_records WHERE user_id=? ORDER BY listened_at DESC LIMIT 50",
+            (uid,)
+        ).fetchall()
+
+        # Dictation sessions (with details)
+        sessions = db.execute(
+            "SELECT id, mode, category, total_questions, correct_count, wrong_count, details, completed_at FROM dictation_sessions WHERE user_id=? ORDER BY completed_at DESC LIMIT 100",
+            (uid,)
+        ).fetchall()
+        sessions_out = []
+        for s in sessions:
+            d = dict(s)
+            try:
+                d['details'] = json.loads(d.get('details') or '[]')
+            except Exception:
+                d['details'] = []
+            sessions_out.append(d)
+
+        # Diagnosis
+        diag = db.execute(
+            "SELECT category, pinyin, status, diagnosed_at FROM diagnosis_results WHERE user_id=? ORDER BY category, pinyin",
+            (uid,)
+        ).fetchall()
+        diag_known = db.execute("SELECT COUNT(*) as c FROM diagnosis_results WHERE user_id=? AND status='known'", (uid,)).fetchone()['c']
+        diag_unsure = db.execute("SELECT COUNT(*) as c FROM diagnosis_results WHERE user_id=? AND status='unsure'", (uid,)).fetchone()['c']
+        diag_unknown = db.execute("SELECT COUNT(*) as c FROM diagnosis_results WHERE user_id=? AND status='unknown'", (uid,)).fetchone()['c']
+
+        # Daily activity (last 30 days)
+        daily = db.execute("""
+            SELECT date(listened_at) as d, COUNT(*) as c FROM listening_records WHERE user_id=? AND listened_at >= date('now','-29 days') GROUP BY d ORDER BY d
+        """, (uid,)).fetchall()
+
+    return jsonify({
+        'user': dict(user),
+        'listen_total': listen_total,
+        'listen_by_cat': [dict(r) for r in listen_by_cat],
+        'listen_recent': [dict(r) for r in listen_recent],
+        'sessions': sessions_out,
+        'diag': [dict(r) for r in diag],
+        'diag_counts': {'known': diag_known, 'unsure': diag_unsure, 'unknown': diag_unknown},
+        'daily': [dict(r) for r in daily]
     })
 
 # ═══════════════════════════════════════════════════════════════

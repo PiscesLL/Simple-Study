@@ -115,6 +115,7 @@
 
   async function playSyllable(sm, ym, syl, tone){
     tone = tone || 1;
+    if(window.api && typeof window.api.track === 'function') window.api.track('syllable', syl + tone);
     if(ZHENG_TI.has(syl)){
       await playMP3(`${mp3Tone(syl)}${tone}.mp3`);
       return;

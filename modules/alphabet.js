@@ -19,6 +19,7 @@
   }
 
   function playLetter(letter){
+    if(window.api && typeof window.api.track === 'function') window.api.track('alphabet', letter.toLowerCase());
     if(currentAudio){currentAudio.pause();currentAudio=null}
     const a = new Audio('audio/en/'+letter.toLowerCase()+'.mp3');
     currentAudio = a;

@@ -486,6 +486,26 @@
         document.getElementById('wrCStars').textContent = stars;
         document.getElementById('wrCMsg').textContent = msg;
         document.getElementById('wrCDet').textContent = '共 '+total+' 题 · 正确 '+correct+' 题 · 正确率 '+pct+'%';
+
+        // ─── Save writing session to backend API ───
+        if(window.api && typeof window.api.isLoggedIn === 'function' && window.api.isLoggedIn()){
+          try {
+            const details = practicedItems.map(item => ({
+              item: item.letter,
+              correct: item.correct === true
+            }));
+            window.api.saveDictation({
+              mode: 'writing',
+              category: 'alphabet',
+              total_questions: total,
+              correct_count: correct,
+              wrong_count: total - correct,
+              details: details
+            }).catch(()=>{});
+          } catch(e){
+            console.warn('[writing] Failed to save session:', e);
+          }
+        }
       }
     }
 

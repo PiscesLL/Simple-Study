@@ -73,6 +73,11 @@
     logListening: function(category, item){
       return this.request('POST', '/listening', {category, item});
     },
+    // Convenience: log a listening event, silently skip when not logged in
+    track: function(category, item){
+      if(!this.isLoggedIn()) return Promise.resolve();
+      return this.logListening(category, item).catch(()=>{});
+    },
     saveDictation: function(data){
       return this.request('POST', '/dictation', data);
     },
@@ -80,6 +85,34 @@
       return this.request('GET', '/stats');
     }
   };
+
+  /* ═══ LOGIN-REMINDER BANNER (dismissible, never blocks) ═══ */
+  const BANNER_KEY = 'study_banner_hidden';
+  function maybeShowBanner(){
+    if(localStorage.getItem(BANNER_KEY)) return;
+    if(document.getElementById('authReminder')) return;
+    const div = document.createElement('div');
+    div.id = 'authReminder';
+    div.style.cssText = 'position:fixed;left:12px;right:12px;bottom:14px;z-index:9990;background:#1e293b;color:#fff;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:13px;animation:ap2 .3s ease';
+    div.innerHTML = `
+      <span style="flex:1">🔑 登录后自动记录学习进度，随时查看自己的进步</span>
+      <button id="reminderLogin" style="flex-shrink:0;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:#fff;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">去登录</button>
+      <button id="reminderClose" style="flex-shrink:0;background:none;border:none;color:#94a3b8;font-size:16px;cursor:pointer;padding:0 4px">✕</button>
+    `;
+    document.body.appendChild(div);
+    div.querySelector('#reminderLogin').addEventListener('click', ()=>{
+      div.remove();
+      if(window.showAuth) window.showAuth();
+    });
+    div.querySelector('#reminderClose').addEventListener('click', ()=>{
+      localStorage.setItem(BANNER_KEY, '1');
+      div.remove();
+    });
+  }
+  function maybeHideBanner(){
+    const b = document.getElementById('authReminder');
+    if(b) b.remove();
+  }
 
   /* ═══ LOGIN/REGISTER MODAL ═══ */
   function buildModal(){
@@ -169,8 +202,9 @@
         } else {
           await window.api.login(username, password);
         }
-        overlay.classList.remove('show');
-        updateAuthUI();
+          overlay.classList.remove('show');
+          updateAuthUI();
+          maybeHideBanner();
       } catch(e){
         errEl.textContent = e.message;
         errEl.style.display = 'block';
@@ -228,6 +262,11 @@
     // Restore session
     window.api.restore().then(() => {
       updateAuthUI();
+      if(window.api.isLoggedIn()){
+        maybeHideBanner();
+      } else {
+        setTimeout(maybeShowBanner, 1500);
+      }
     });
   });
 })();
