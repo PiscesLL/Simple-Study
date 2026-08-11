@@ -16,6 +16,7 @@
 
   /* ─── PLAY AUDIO ────────────────────────────────────────── */
   function playPinyin(py){
+    if(window.api && typeof window.api.track === 'function') window.api.track(currentGrid || 'grid', py);
     if(currentAudio){ currentAudio.pause(); currentAudio=null }
     const a = new Audio();
     a.src = `../audio/${py}.mp3`;

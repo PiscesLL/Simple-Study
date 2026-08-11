@@ -82,6 +82,7 @@
   }
 
   function playAudio(pinyin){
+    if(window.api && typeof window.api.track === 'function') window.api.track('review', pinyin);
     if(currentAudio){currentAudio.pause();currentAudio=null}
     const a = new Audio('audio/'+pinyin+'.mp3');
     currentAudio = a;

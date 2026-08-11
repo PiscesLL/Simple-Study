@@ -43,6 +43,7 @@
   }
 
   function playPinyin(py){
+    if(window.api && typeof window.api.track === 'function') window.api.track('contrast', py);
     if(currentAudio){ currentAudio.pause(); currentAudio = null; }
     const a = new Audio('audio/'+py+'.mp3');
     currentAudio = a;
