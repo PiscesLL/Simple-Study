@@ -3,7 +3,7 @@ SIMPLE-STUDY Backend — User accounts + learning analytics
 Flask + sqlite3 + werkzeug (zero extra dependencies)
 """
 from flask import Flask, request, jsonify, send_from_directory
-import os, uuid, sqlite3, json, time
+import os, uuid, sqlite3, json, time, random
 from datetime import datetime, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -13,6 +13,7 @@ BASE = os.path.dirname(__file__)
 DB_PATH = os.path.join(BASE, 'study.db')
 ICONS_DIR = os.path.join(BASE, 'icons')
 ADMIN_FILE = os.path.join(BASE, 'admin.json')
+MAIL_FILE = os.path.join(BASE, 'mail.json')
 os.makedirs(ICONS_DIR, exist_ok=True)
 
 # ─── Admin password management ──────────────────────────────
@@ -66,6 +67,10 @@ def require_admin(f):
 # ═══════════════════════════════════════════════════════════════
 #  DATABASE
 # ═══════════════════════════════════════════════════════════════
+# In-memory captcha store: {captcha_id: {'answer': int, 'expires': ts}}
+_captchas = {}
+_captcha_lock = threading.Lock()
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -81,6 +86,7 @@ def init_db():
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 display_name TEXT DEFAULT '',
+                email TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS auth_tokens (
@@ -116,10 +122,22 @@ def init_db():
                 details TEXT DEFAULT '[]',
                 completed_at TEXT DEFAULT (datetime('now'))
             );
+            CREATE TABLE IF NOT EXISTS password_resets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL,
+                code TEXT NOT NULL,
+                created_at TEXT DEFAULT (datetime('now')),
+                expires_at TEXT NOT NULL,
+                used INTEGER DEFAULT 0
+            );
         """)
 init_db()
-# Migration: add details column to dictation_sessions for older databases
+# Migration: add email column to users for older databases
 with get_db() as db:
+    ucols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    if 'email' not in ucols:
+        db.execute("ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''")
+    # Migration: add details column to dictation_sessions for older databases
     cols = [r[1] for r in db.execute("PRAGMA table_info(dictation_sessions)").fetchall()]
     if 'details' not in cols:
         db.execute("ALTER TABLE dictation_sessions ADD COLUMN details TEXT DEFAULT '[]'")
@@ -147,22 +165,69 @@ def require_auth(f):
 # ═══════════════════════════════════════════════════════════════
 #  AUTH API
 # ═══════════════════════════════════════════════════════════════
+@app.route('/api/captcha')
+def api_captcha():
+    """Simple arithmetic captcha: {id, question}. Answer stored in memory."""
+    import random
+    a = random.randint(1, 9)
+    b = random.randint(1, 9)
+    op = random.choice(['+', '-', '×'])
+    if op == '-':
+        if a < b: a, b = b, a
+        ans = a - b
+        question = f'{a} - {b} = ?'
+    elif op == '+':
+        ans = a + b
+        question = f'{a} + {b} = ?'
+    else:
+        ans = a * b
+        question = f'{a} × {b} = ?'
+    cid = uuid.uuid4().hex
+    with _captcha_lock:
+        _captchas[cid] = {'answer': ans, 'expires': time.time() + 300}
+    return jsonify({'id': cid, 'question': question})
+
+def verify_captcha(cid, answer):
+    with _captcha_lock:
+        entry = _captchas.pop(cid, None)
+    if not entry:
+        return False
+    if entry['expires'] < time.time():
+        return False
+    try:
+        return int(answer) == entry['answer']
+    except (TypeError, ValueError):
+        return False
+
+def valid_email(email):
+    import re
+    return bool(re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email or ''))
+
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json() or {}
     username = (data.get('username') or '').strip()
     password = data.get('password', '')
+    email = (data.get('email') or '').strip()
+    captcha_id = data.get('captcha_id', '')
+    captcha_answer = data.get('captcha_answer', '')
     if len(username) < 2 or len(password) < 4:
         return jsonify({'error': '用户名至少2位，密码至少4位'}), 400
+    if not verify_captcha(captcha_id, captcha_answer):
+        return jsonify({'error': '验证码错误或已过期'}), 400
+    if email and not valid_email(email):
+        return jsonify({'error': '邮箱格式不正确'}), 400
     with get_db() as db:
         if db.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
             return jsonify({'error': '用户名已存在'}), 409
+        if email and db.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
+            return jsonify({'error': '该邮箱已被使用'}), 409
         pw_hash = generate_password_hash(password)
-        cur = db.execute("INSERT INTO users (username, password_hash) VALUES (?,?)", (username, pw_hash))
+        cur = db.execute("INSERT INTO users (username, password_hash, email) VALUES (?,?,?)", (username, pw_hash, email))
         user_id = cur.lastrowid
         token = str(uuid.uuid4())
         db.execute("INSERT INTO auth_tokens (user_id, token) VALUES (?,?)", (user_id, token))
-        return jsonify({'token': token, 'user': {'id': user_id, 'username': username, 'display_name': ''}}), 201
+        return jsonify({'token': token, 'user': {'id': user_id, 'username': username, 'display_name': '', 'email': email}}), 201
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
@@ -175,7 +240,7 @@ def api_login():
             return jsonify({'error': '用户名或密码错误'}), 401
         token = str(uuid.uuid4())
         db.execute("INSERT INTO auth_tokens (user_id, token) VALUES (?,?)", (user['id'], token))
-        return jsonify({'token': token, 'user': {'id': user['id'], 'username': user['username'], 'display_name': user['display_name']}})
+        return jsonify({'token': token, 'user': {'id': user['id'], 'username': user['username'], 'display_name': user['display_name'], 'email': user['email']}})
 
 @app.route('/api/me')
 @require_auth
@@ -189,6 +254,105 @@ def api_logout(user):
     with get_db() as db:
         db.execute("DELETE FROM auth_tokens WHERE token=?", (token,))
     return jsonify({'ok': True})
+
+# ═══════════════════════════════════════════════════════════════
+#  EMAIL (SMTP) — mail.json: {"smtp_host","smtp_port","user","password","from_addr","from_name"}
+# ═══════════════════════════════════════════════════════════════
+def load_mail_config():
+    try:
+        with open(MAIL_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+def send_mail(to_email, subject, text):
+    """Send email via SMTP. Returns (ok, error_msg). If mail not configured, (False, 'mail_not_configured')."""
+    cfg = load_mail_config()
+    if not cfg or not cfg.get('smtp_host') or not cfg.get('user'):
+        return False, '邮件服务未配置'
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.header import Header
+    try:
+        msg = MIMEText(text, 'plain', 'utf-8')
+        msg['Subject'] = Header(subject, 'utf-8')
+        msg['From'] = cfg.get('from_addr') or cfg.get('user')
+        msg['To'] = to_email
+        port = int(cfg.get('smtp_port', 465))
+        use_ssl = cfg.get('ssl', True)
+        if use_ssl:
+            server = smtplib.SMTP_SSL(cfg['smtp_host'], port, timeout=15)
+        else:
+            server = smtplib.SMTP(cfg['smtp_host'], port, timeout=15)
+            server.ehlo()
+            if cfg.get('starttls', False):
+                server.starttls()
+                server.ehlo()
+        try:
+            server.login(cfg['user'], cfg.get('password', ''))
+            server.sendmail(cfg.get('from_addr') or cfg['user'], [to_email], msg.as_string())
+        finally:
+            server.quit()
+        return True, ''
+    except Exception as e:
+        return False, f'邮件发送失败: {e}'
+
+def mail_configured():
+    cfg = load_mail_config()
+    return bool(cfg and cfg.get('smtp_host') and cfg.get('user'))
+
+# ═══════════════════════════════════════════════════════════════
+#  PASSWORD RESET API (email-based)
+# ═══════════════════════════════════════════════════════════════
+@app.route('/api/forgot', methods=['POST'])
+def api_forgot():
+    """Send a 6-digit reset code to the user's registered email."""
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    if not valid_email(email):
+        return jsonify({'error': '邮箱格式不正确'}), 400
+    with get_db() as db:
+        user = db.execute("SELECT id, username FROM users WHERE lower(email)=?", (email,)).fetchone()
+        if not user:
+            # Don't reveal whether the email exists — same generic response
+            return jsonify({'ok': True, 'message': '如果该邮箱已注册，重置码将发送到你的邮箱'})
+        code = str(random.randint(100000, 999999))
+        expires = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        db.execute("UPDATE password_resets SET used=1 WHERE email=?", (email,))
+        db.execute("INSERT INTO password_resets (email, code, expires_at) VALUES (?,?,?)", (email, code, expires))
+    ok, err = send_mail(email, '学习乐园 · 找回账号/重置密码',
+                        f'你的学习乐园账号是：{user["username"]}\n\n重置密码验证码：{code}\n验证码10分钟内有效。如果不是你本人操作，请忽略本邮件。')
+    if not ok:
+        return jsonify({'error': err}), 503
+    return jsonify({'ok': True, 'message': '重置码已发送到你的邮箱'})
+
+@app.route('/api/reset', methods=['POST'])
+def api_reset():
+    """Verify reset code and set new password."""
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    code = (data.get('code') or '').strip()
+    new_password = data.get('new_password', '')
+    if len(new_password) < 4:
+        return jsonify({'error': '新密码至少4位'}), 400
+    import datetime as _dt
+    with get_db() as db:
+        row = db.execute(
+            "SELECT * FROM password_resets WHERE lower(email)=? AND code=? AND used=0 ORDER BY id DESC LIMIT 1",
+            (email, code)
+        ).fetchone()
+        if not row:
+            return jsonify({'error': '验证码错误'}), 400
+        if row['expires_at'] < _dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'):
+            return jsonify({'error': '验证码已过期，请重新获取'}), 400
+        user = db.execute("SELECT id FROM users WHERE lower(email)=?", (email,)).fetchone()
+        if not user:
+            return jsonify({'error': '账号不存在'}), 404
+        db.execute("UPDATE users SET password_hash=? WHERE id=?", (generate_password_hash(new_password), user['id']))
+        db.execute("UPDATE password_resets SET used=1 WHERE id=?", (row['id'],))
+        # Invalidate all sessions
+        db.execute("DELETE FROM auth_tokens WHERE user_id=?", (user['id'],))
+    return jsonify({'ok': True, 'message': '密码已重置，请重新登录'})
 
 # ═══════════════════════════════════════════════════════════════
 #  DIAGNOSIS API

@@ -33,11 +33,25 @@
       return data;
     },
 
-    register: async function(username, password){
-      const data = await this.request('POST', '/register', {username, password});
+    register: async function(username, password, email, captcha_id, captcha_answer){
+      const body = {username, password, captcha_id, captcha_answer};
+      if(email) body.email = email;
+      const data = await this.request('POST', '/register', body);
       localStorage.setItem(TOKEN_KEY, data.token);
       currentUser = data.user;
       return data;
+    },
+
+    getCaptcha: function(){
+      return this.request('GET', '/captcha');
+    },
+
+    forgot: function(email){
+      return this.request('POST', '/forgot', {email});
+    },
+
+    resetPassword: function(email, code, new_password){
+      return this.request('POST', '/reset', {email, code, new_password});
     },
 
     logout: async function(){
@@ -124,13 +138,13 @@
         .auth-overlay{
           display:none;position:fixed;inset:0;z-index:9999;
           background:rgba(0,0,0,.4);backdrop-filter:blur(6px);
-          align-items:center;justify-content:center;padding:16px
+          align-items:center;justify-content:center;padding:16px;overflow-y:auto
         }
         .auth-overlay.show{display:flex}
         .auth-box{
           background:#fff;border-radius:20px;padding:32px 24px 24px;
           max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.15);
-          animation:ap2 .3s ease;text-align:center
+          animation:ap2 .3s ease;text-align:center;margin:auto
         }
         @keyframes ap2{0%{opacity:0;transform:scale(.85) translateY(16px)}100%{opacity:1;transform:scale(1) translateY(0)}}
         .auth-title{font-size:22px;font-weight:800;color:#1e293b;margin-bottom:20px}
@@ -147,8 +161,18 @@
           box-shadow:0 4px 16px rgba(99,102,241,.3);margin-bottom:8px
         }
         .auth-btn:active{transform:scale(.97)}
-        .auth-switch{font-size:13px;color:#6366f1;cursor:pointer;text-decoration:underline;background:none;border:none}
+        .auth-btn:disabled{opacity:.6;cursor:not-allowed}
+        .auth-switch{font-size:13px;color:#6366f1;cursor:pointer;text-decoration:underline;background:none;border:none;margin-top:4px}
         .auth-err{color:#ef4444;font-size:13px;margin-bottom:8px;display:none}
+        .auth-captcha{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+        .auth-captcha .auth-input{margin-bottom:0;flex:1}
+        .auth-captcha-q{
+          flex-shrink:0;padding:0 14px;height:44px;display:flex;align-items:center;
+          background:#eef2ff;border:2px solid #c7d2fe;border-radius:10px;
+          font-size:16px;font-weight:800;color:#4338ca;cursor:pointer;user-select:none
+        }
+        .auth-hint{font-size:12px;color:#94a3b8;margin:-4px 0 12px;text-align:left}
+        .auth-ok{color:#16a34a;font-size:13px;margin-bottom:8px;display:none}
         .auth-user{display:flex;align-items:center;gap:8px}
         .auth-user-name{font-size:14px;font-weight:600;color:#1e293b}
         .auth-logout{font-size:12px;color:#94a3b8;cursor:pointer;text-decoration:underline;background:none;border:none}
@@ -157,10 +181,43 @@
         <div class="auth-box" id="authBox">
           <div class="auth-title" id="authTitle">登录</div>
           <div class="auth-err" id="authErr"></div>
-          <input class="auth-input" id="authUser" placeholder="用户名" autocomplete="username">
-          <input class="auth-input" id="authPass" type="password" placeholder="密码" autocomplete="current-password">
-          <button class="auth-btn" id="authSubmit">登录</button>
-          <button class="auth-switch" id="authSwitch">没有账号？去注册</button>
+          <div class="auth-ok" id="authOk"></div>
+
+          <!-- ═══ LOGIN VIEW ═══ -->
+          <div id="viewLogin">
+            <input class="auth-input" id="authUser" placeholder="用户名" autocomplete="username">
+            <input class="auth-input" id="authPass" type="password" placeholder="密码" autocomplete="current-password">
+            <button class="auth-btn" id="authSubmit">登录</button>
+            <div style="text-align:right;margin-bottom:6px">
+              <button class="auth-switch" id="authForgot">忘记密码？</button>
+            </div>
+            <button class="auth-switch" id="authSwitch">没有账号？去注册</button>
+          </div>
+
+          <!-- ═══ REGISTER VIEW ═══ -->
+          <div id="viewRegister" style="display:none">
+            <input class="auth-input" id="regUser" placeholder="用户名（2位以上）" autocomplete="username">
+            <input class="auth-input" id="regPass" type="password" placeholder="密码（至少4位）" autocomplete="new-password">
+            <input class="auth-input" id="regPass2" type="password" placeholder="确认密码" autocomplete="new-password">
+            <input class="auth-input" id="regEmail" type="email" placeholder="邮箱（选填，用于找回账号/重置密码）" autocomplete="email">
+            <div class="auth-captcha">
+              <input class="auth-input" id="regCaptcha" placeholder="验证码" autocomplete="off">
+              <div class="auth-captcha-q" id="regCaptchaQ">加载中...</div>
+            </div>
+            <button class="auth-btn" id="regSubmit">注册</button>
+            <button class="auth-switch" id="regSwitch">已有账号？去登录</button>
+          </div>
+
+          <!-- ═══ FORGOT VIEW ═══ -->
+          <div id="viewForgot" style="display:none">
+            <div class="auth-hint" id="forgotHint">输入注册时填写的邮箱，我们会把账号名和重置验证码发送到该邮箱。</div>
+            <input class="auth-input" id="forgotEmail" type="email" placeholder="注册邮箱" autocomplete="email">
+            <button class="auth-btn" id="forgotSend">发送验证码</button>
+            <input class="auth-input" id="forgotCode" placeholder="邮箱中的验证码" autocomplete="off" style="margin-top:12px;display:none">
+            <input class="auth-input" id="forgotPass" type="password" placeholder="新密码（至少4位）" autocomplete="new-password" style="display:none">
+            <button class="auth-btn" id="forgotReset" style="display:none">重置密码</button>
+            <button class="auth-switch" id="forgotBack">← 返回登录</button>
+          </div>
         </div>
       </div>
     `;
@@ -169,59 +226,242 @@
 
     // State
     let isRegister = false;
+    let captchaId = '';
 
     const overlay = div.querySelector('#authOverlay');
     const title = div.querySelector('#authTitle');
-    const userInput = div.querySelector('#authUser');
-    const passInput = div.querySelector('#authPass');
-    const submitBtn = div.querySelector('#authSubmit');
-    const switchBtn = div.querySelector('#authSwitch');
     const errEl = div.querySelector('#authErr');
+    const okEl = div.querySelector('#authOk');
+    const viewLogin = div.querySelector('#viewLogin');
+    const viewRegister = div.querySelector('#viewRegister');
+    const viewForgot = div.querySelector('#viewForgot');
+
+    const loginUser = div.querySelector('#authUser');
+    const loginPass = div.querySelector('#authPass');
+    const loginSubmit = div.querySelector('#authSubmit');
+    const switchBtn = div.querySelector('#authSwitch');
+
+    const regUser = div.querySelector('#regUser');
+    const regPass = div.querySelector('#regPass');
+    const regPass2 = div.querySelector('#regPass2');
+    const regEmail = div.querySelector('#regEmail');
+    const regCaptcha = div.querySelector('#regCaptcha');
+    const regCaptchaQ = div.querySelector('#regCaptchaQ');
+    const regSubmit = div.querySelector('#regSubmit');
+    const regSwitch = div.querySelector('#regSwitch');
+
+    function showErr(msg){
+      okEl.style.display = 'none';
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+    }
+    function showOk(msg){
+      errEl.style.display = 'none';
+      okEl.textContent = msg;
+      okEl.style.display = 'block';
+    }
+    function clearMsg(){
+      errEl.style.display = 'none';
+      okEl.style.display = 'none';
+    }
+
+    // ─── Captcha ───
+    function loadCaptcha(){
+      regCaptchaQ.textContent = '加载中...';
+      window.api.getCaptcha().then(d=>{
+        captchaId = d.id;
+        regCaptchaQ.textContent = d.question;
+        regCaptcha.value = '';
+      }).catch(()=>{
+        regCaptchaQ.textContent = '点此刷新';
+        captchaId = '';
+      });
+    }
+    regCaptchaQ.addEventListener('click', loadCaptcha);
 
     function setMode(reg){
       isRegister = reg;
-      title.textContent = reg ? '注册' : '登录';
-      submitBtn.textContent = reg ? '注册' : '登录';
-      switchBtn.textContent = reg ? '已有账号？去登录' : '没有账号？去注册';
-      errEl.style.display = 'none';
+      clearMsg();
+      if(reg){
+        title.textContent = '注册';
+        viewLogin.style.display = 'none';
+        viewRegister.style.display = 'block';
+        viewForgot.style.display = 'none';
+        loadCaptcha();
+        setTimeout(()=>regUser.focus(), 50);
+      } else {
+        title.textContent = '登录';
+        viewLogin.style.display = 'block';
+        viewRegister.style.display = 'none';
+        viewForgot.style.display = 'none';
+        setTimeout(()=>loginUser.focus(), 50);
+      }
     }
 
-    async function handleSubmit(){
-      const username = userInput.value.trim();
-      const password = passInput.value;
-      if(!username || password.length < 4){
-        errEl.textContent = '用户名不能为空，密码至少4位';
-        errEl.style.display = 'block';
+    function showForgot(){
+      isRegister = false;
+      clearMsg();
+      title.textContent = '找回账号 / 重置密码';
+      viewLogin.style.display = 'none';
+      viewRegister.style.display = 'none';
+      viewForgot.style.display = 'block';
+      document.getElementById('forgotHint').style.display = 'block';
+      document.getElementById('forgotEmail').style.display = 'block';
+      document.getElementById('forgotSend').style.display = 'block';
+      document.getElementById('forgotCode').style.display = 'none';
+      document.getElementById('forgotPass').style.display = 'none';
+      document.getElementById('forgotReset').style.display = 'none';
+      document.getElementById('forgotEmail').value = '';
+      document.getElementById('forgotCode').value = '';
+      document.getElementById('forgotPass').value = '';
+      setTimeout(()=>document.getElementById('forgotEmail').focus(), 50);
+    }
+
+    // ─── Login submit ───
+    async function handleLogin(){
+      const username = loginUser.value.trim();
+      const password = loginPass.value;
+      if(!username || !password){
+        showErr('请输入用户名和密码');
         return;
       }
-      submitBtn.disabled = true;
-      submitBtn.textContent = '请稍候...';
+      loginSubmit.disabled = true;
+      loginSubmit.textContent = '请稍候...';
       try {
-        if(isRegister){
-          await window.api.register(username, password);
-        } else {
-          await window.api.login(username, password);
-        }
-          overlay.classList.remove('show');
-          updateAuthUI();
-          maybeHideBanner();
+        await window.api.login(username, password);
+        overlay.classList.remove('show');
+        updateAuthUI();
+        maybeHideBanner();
       } catch(e){
-        errEl.textContent = e.message;
-        errEl.style.display = 'block';
+        showErr(e.message);
       }
-      submitBtn.disabled = false;
-      submitBtn.textContent = isRegister ? '注册' : '登录';
+      loginSubmit.disabled = false;
+      loginSubmit.textContent = '登录';
     }
 
-    submitBtn.addEventListener('click', handleSubmit);
-    switchBtn.addEventListener('click', () => setMode(!isRegister));
-    userInput.addEventListener('keydown', e => { if(e.key==='Enter') passInput.focus() });
-    passInput.addEventListener('keydown', e => { if(e.key==='Enter') handleSubmit() });
+    // ─── Register submit ───
+    async function handleRegister(){
+      const username = regUser.value.trim();
+      const password = regPass.value;
+      const password2 = regPass2.value;
+      const email = regEmail.value.trim();
+      const answer = regCaptcha.value.trim();
+      if(username.length < 2){
+        showErr('用户名至少2位');
+        return;
+      }
+      if(password.length < 4){
+        showErr('密码至少4位');
+        return;
+      }
+      if(password !== password2){
+        showErr('两次输入的密码不一致');
+        return;
+      }
+      if(email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+        showErr('邮箱格式不正确');
+        return;
+      }
+      if(!captchaId || !answer){
+        showErr('请完成验证码');
+        return;
+      }
+      regSubmit.disabled = true;
+      regSubmit.textContent = '请稍候...';
+      try {
+        await window.api.register(username, password, email, captchaId, answer);
+        overlay.classList.remove('show');
+        updateAuthUI();
+        maybeHideBanner();
+      } catch(e){
+        showErr(e.message);
+        loadCaptcha(); // refresh captcha after a failed attempt
+      }
+      regSubmit.disabled = false;
+      regSubmit.textContent = '注册';
+    }
+
+    // ─── Forgot flow ───
+    const forgotEmail = div.querySelector('#forgotEmail');
+    const forgotCode = div.querySelector('#forgotCode');
+    const forgotPass = div.querySelector('#forgotPass');
+    const forgotSend = div.querySelector('#forgotSend');
+    const forgotReset = div.querySelector('#forgotReset');
+
+    async function handleForgotSend(){
+      const email = forgotEmail.value.trim();
+      if(!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
+        showErr('请输入正确的邮箱');
+        return;
+      }
+      forgotSend.disabled = true;
+      forgotSend.textContent = '发送中...';
+      try {
+        const data = await window.api.forgot(email);
+        showOk(data.message || '验证码已发送');
+        document.getElementById('forgotHint').style.display = 'none';
+        forgotEmail.style.display = 'none';
+        forgotSend.style.display = 'none';
+        forgotCode.style.display = 'block';
+        forgotPass.style.display = 'block';
+        forgotReset.style.display = 'block';
+        forgotCode.focus();
+      } catch(e){
+        showErr(e.message);
+      }
+      forgotSend.disabled = false;
+      forgotSend.textContent = '发送验证码';
+    }
+
+    async function handleForgotReset(){
+      const email = forgotEmail.value.trim();
+      const code = forgotCode.value.trim();
+      const password = forgotPass.value;
+      if(!code){
+        showErr('请输入验证码');
+        return;
+      }
+      if(password.length < 4){
+        showErr('新密码至少4位');
+        return;
+      }
+      forgotReset.disabled = true;
+      forgotReset.textContent = '重置中...';
+      try {
+        const data = await window.api.resetPassword(email, code, password);
+        showOk(data.message || '密码已重置');
+        forgotReset.style.display = 'none';
+        setTimeout(()=>setMode(false), 1500);
+      } catch(e){
+        showErr(e.message);
+      }
+      forgotReset.disabled = false;
+      forgotReset.textContent = '重置密码';
+    }
+
+    loginSubmit.addEventListener('click', handleLogin);
+    switchBtn.addEventListener('click', () => setMode(true));
+    regSubmit.addEventListener('click', handleRegister);
+    regSwitch.addEventListener('click', () => setMode(false));
+    div.querySelector('#authForgot').addEventListener('click', showForgot);
+    div.querySelector('#forgotBack').addEventListener('click', () => setMode(false));
+    forgotSend.addEventListener('click', handleForgotSend);
+    forgotReset.addEventListener('click', handleForgotReset);
+    loginUser.addEventListener('keydown', e => { if(e.key==='Enter') loginPass.focus() });
+    loginPass.addEventListener('keydown', e => { if(e.key==='Enter') handleLogin() });
+    regUser.addEventListener('keydown', e => { if(e.key==='Enter') regPass.focus() });
+    regPass.addEventListener('keydown', e => { if(e.key==='Enter') regPass2.focus() });
+    regPass2.addEventListener('keydown', e => { if(e.key==='Enter') regEmail.focus() });
+    regEmail.addEventListener('keydown', e => { if(e.key==='Enter') regCaptcha.focus() });
+    regCaptcha.addEventListener('keydown', e => { if(e.key==='Enter') handleRegister() });
+    forgotEmail.addEventListener('keydown', e => { if(e.key==='Enter') handleForgotSend() });
+    forgotCode.addEventListener('keydown', e => { if(e.key==='Enter') forgotPass.focus() });
+    forgotPass.addEventListener('keydown', e => { if(e.key==='Enter') handleForgotReset() });
 
     // Close on overlay click
     overlay.addEventListener('click', e => { if(e.target === overlay) overlay.classList.remove('show') });
 
-    window.showAuth = function(){ overlay.classList.add('show'); setMode(false); userInput.focus() };
+    window.showAuth = function(){ overlay.classList.add('show'); setMode(false); };
   }
 
   /* ═══ AUTH UI UPDATE ═══ */
