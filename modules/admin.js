@@ -190,6 +190,11 @@
   /* ═══ ACTIVITY BARS (shared by admin + my-records) ═══
      daily: [{d:'YYYY-MM-DD', c:N}] (backend grouped, last 30 days)
      Renders: summary stats + only-active-day bars with sparse labels. */
+  function fmtLocal(dt){
+    const p = n => String(n).padStart(2, '0');
+    return dt.getFullYear() + '-' + p(dt.getMonth()+1) + '-' + p(dt.getDate());
+  }
+
   window.renderActivityBars = function(daily){
     const dailyMap = {};
     (daily||[]).forEach(x=>{ dailyMap[x.d] = x.c });
