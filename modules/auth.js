@@ -33,10 +33,8 @@
       return data;
     },
 
-    register: async function(username, password, email, captcha_id, captcha_answer){
-      const body = {username, password, captcha_id, captcha_answer};
-      if(email) body.email = email;
-      const data = await this.request('POST', '/register', body);
+    register: async function(username, password, captcha_id, captcha_answer){
+      const data = await this.request('POST', '/register', {username, password, captcha_id, captcha_answer});
       localStorage.setItem(TOKEN_KEY, data.token);
       currentUser = data.user;
       return data;
@@ -188,7 +186,6 @@
             <input class="auth-input" id="regUser" placeholder="用户名（2位以上）" autocomplete="username">
             <input class="auth-input" id="regPass" type="password" placeholder="密码（至少4位）" autocomplete="new-password">
             <input class="auth-input" id="regPass2" type="password" placeholder="确认密码" autocomplete="new-password">
-            <input class="auth-input" id="regEmail" type="email" placeholder="邮箱（选填）" autocomplete="email">
             <div class="auth-captcha">
               <input class="auth-input" id="regCaptcha" placeholder="验证码" autocomplete="off">
               <div class="auth-captcha-q" id="regCaptchaQ">加载中...</div>
@@ -221,7 +218,6 @@
     const regUser = div.querySelector('#regUser');
     const regPass = div.querySelector('#regPass');
     const regPass2 = div.querySelector('#regPass2');
-    const regEmail = div.querySelector('#regEmail');
     const regCaptcha = div.querySelector('#regCaptcha');
     const regCaptchaQ = div.querySelector('#regCaptchaQ');
     const regSubmit = div.querySelector('#regSubmit');
@@ -300,7 +296,6 @@
       const username = regUser.value.trim();
       const password = regPass.value;
       const password2 = regPass2.value;
-      const email = regEmail.value.trim();
       const answer = regCaptcha.value.trim();
       if(username.length < 2){
         showErr('用户名至少2位');
@@ -314,10 +309,6 @@
         showErr('两次输入的密码不一致');
         return;
       }
-      if(email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){
-        showErr('邮箱格式不正确');
-        return;
-      }
       if(!captchaId || !answer){
         showErr('请完成验证码');
         return;
@@ -325,7 +316,7 @@
       regSubmit.disabled = true;
       regSubmit.textContent = '请稍候...';
       try {
-        await window.api.register(username, password, email, captchaId, answer);
+        await window.api.register(username, password, captchaId, answer);
         overlay.classList.remove('show');
         updateAuthUI();
         maybeHideBanner();
@@ -346,8 +337,7 @@
     loginPass.addEventListener('keydown', e => { if(e.key==='Enter') handleLogin() });
     regUser.addEventListener('keydown', e => { if(e.key==='Enter') regPass.focus() });
     regPass.addEventListener('keydown', e => { if(e.key==='Enter') regPass2.focus() });
-    regPass2.addEventListener('keydown', e => { if(e.key==='Enter') regEmail.focus() });
-    regEmail.addEventListener('keydown', e => { if(e.key==='Enter') regCaptcha.focus() });
+    regPass2.addEventListener('keydown', e => { if(e.key==='Enter') regCaptcha.focus() });
     regCaptcha.addEventListener('keydown', e => { if(e.key==='Enter') handleRegister() });
 
     // Close on overlay click

@@ -85,7 +85,6 @@ def init_db():
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
                 display_name TEXT DEFAULT '',
-                email TEXT DEFAULT '',
                 created_at TEXT DEFAULT (datetime('now'))
             );
             CREATE TABLE IF NOT EXISTS auth_tokens (
@@ -123,12 +122,8 @@ def init_db():
             );
         """)
 init_db()
-# Migration: add email column to users for older databases
+# Migration: add details column to dictation_sessions for older databases
 with get_db() as db:
-    ucols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
-    if 'email' not in ucols:
-        db.execute("ALTER TABLE users ADD COLUMN email TEXT DEFAULT ''")
-    # Migration: add details column to dictation_sessions for older databases
     cols = [r[1] for r in db.execute("PRAGMA table_info(dictation_sessions)").fetchall()]
     if 'details' not in cols:
         db.execute("ALTER TABLE dictation_sessions ADD COLUMN details TEXT DEFAULT '[]'")
@@ -190,35 +185,26 @@ def verify_captcha(cid, answer):
     except (TypeError, ValueError):
         return False
 
-def valid_email(email):
-    import re
-    return bool(re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email or ''))
-
 @app.route('/api/register', methods=['POST'])
 def api_register():
     data = request.get_json() or {}
     username = (data.get('username') or '').strip()
     password = data.get('password', '')
-    email = (data.get('email') or '').strip()
     captcha_id = data.get('captcha_id', '')
     captcha_answer = data.get('captcha_answer', '')
     if len(username) < 2 or len(password) < 4:
         return jsonify({'error': '用户名至少2位，密码至少4位'}), 400
     if not verify_captcha(captcha_id, captcha_answer):
         return jsonify({'error': '验证码错误或已过期'}), 400
-    if email and not valid_email(email):
-        return jsonify({'error': '邮箱格式不正确'}), 400
     with get_db() as db:
         if db.execute("SELECT 1 FROM users WHERE username=?", (username,)).fetchone():
             return jsonify({'error': '用户名已存在'}), 409
-        if email and db.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
-            return jsonify({'error': '该邮箱已被使用'}), 409
         pw_hash = generate_password_hash(password)
-        cur = db.execute("INSERT INTO users (username, password_hash, email) VALUES (?,?,?)", (username, pw_hash, email))
+        cur = db.execute("INSERT INTO users (username, password_hash) VALUES (?,?)", (username, pw_hash))
         user_id = cur.lastrowid
         token = str(uuid.uuid4())
         db.execute("INSERT INTO auth_tokens (user_id, token) VALUES (?,?)", (user_id, token))
-        return jsonify({'token': token, 'user': {'id': user_id, 'username': username, 'display_name': '', 'email': email}}), 201
+        return jsonify({'token': token, 'user': {'id': user_id, 'username': username, 'display_name': ''}}), 201
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
@@ -231,7 +217,7 @@ def api_login():
             return jsonify({'error': '用户名或密码错误'}), 401
         token = str(uuid.uuid4())
         db.execute("INSERT INTO auth_tokens (user_id, token) VALUES (?,?)", (user['id'], token))
-        return jsonify({'token': token, 'user': {'id': user['id'], 'username': user['username'], 'display_name': user['display_name'], 'email': user['email']}})
+        return jsonify({'token': token, 'user': {'id': user['id'], 'username': user['username'], 'display_name': user['display_name']}})
 
 @app.route('/api/me')
 @require_auth
