@@ -14,9 +14,6 @@ study.db-wal
 # Admin password file (contains password hash) - never commit
 admin.json
 
-# SMTP mail config (contains mail account password) - never commit
-mail.json
-
 # OS
 .DS_Store
 Thumbs.db
