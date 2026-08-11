@@ -57,6 +57,17 @@
       .adm-session-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#334155}
       .adm-session .adm-chip{font-size:11px}
       .adm-logout{float:right;font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;text-decoration:underline}
+      .act-daily .d.active{cursor:pointer}
+      .act-daily .d.active:hover .dv{filter:brightness(1.15)}
+      .adm-day-detail{margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:10px;display:none}
+      .adm-day-detail.open{display:block}
+      .adm-day-head{font-size:13px;font-weight:700;color:#334155;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+      .adm-day-close{background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;text-decoration:underline}
+      .adm-day-sub{font-size:12px;font-weight:700;color:#64748b;margin:10px 0 4px}
+      .adm-day-list{max-height:160px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;padding:6px 8px;background:#fafafa}
+      .adm-day-item{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:13px;color:#475569;border-bottom:1px dashed #f1f5f9}
+      .adm-day-item:last-child{border-bottom:none}
+      .adm-day-time{font-size:11px;color:#94a3b8}
     `;
     document.head.appendChild(s);
   }
@@ -296,6 +307,7 @@
           </div>
           <div class="adm-sec">📅 近30天活跃 <span class="bar"></span></div>
           ${activityHtml}
+          <div class="adm-day-detail" id="admDayDetail"></div>
         </div>
 
         <div class="adm-card">
@@ -315,6 +327,72 @@
       </div>
     `;
     document.getElementById('admBack').addEventListener('click', loadUsers);
+
+    // 活跃柱子点击 → 查看当日详情（管理员接口）
+    const dailyEl = c.querySelector('.act-daily');
+    if(dailyEl){
+      dailyEl.addEventListener('click', e=>{
+        const bar = e.target.closest('.d.active');
+        if(!bar) return;
+        const date = bar.getAttribute('data-date');
+        if(date) loadAdminDayDetail(c, uid, date);
+      });
+    }
+  }
+
+  function loadAdminDayDetail(c, uid, date){
+    const box = c.querySelector('#admDayDetail');
+    if(!box) return;
+    if(box.dataset.date === date && box.classList.contains('open')){
+      box.classList.remove('open');
+      return;
+    }
+    box.classList.add('open');
+    box.dataset.date = date;
+    box.innerHTML = '<div class="adm-day-head"><span>📅 ' + esc(date) + '</span><span class="adm-empty" style="padding:6px 0">加载中...</span></div>';
+    adminFetch('/users/' + uid + '/daily?date=' + encodeURIComponent(date)).then(d=>{
+      if(!d || d.date !== box.dataset.date) return;
+      // 听读明细：按 item 聚合
+      const itemCount = {};
+      (d.listens||[]).forEach(l=>{
+        const k = (l.category||'') + '|' + (l.item||'');
+        itemCount[k] = (itemCount[k]||0) + 1;
+      });
+      const listensHtml = Object.keys(itemCount).map(k=>{
+        const [cat, item] = k.split('|');
+        return `<div class="adm-day-item"><span><span class="adm-chip">${esc(cat)}</span> ${esc(item)}</span><span class="adm-chip">${itemCount[k]}次</span></div>`;
+      }).join('') || '<div class="adm-day-item">无听读记录</div>';
+
+      const sessionsHtml = (d.sessions||[]).map(s=>{
+        const det = (s.details||[]).slice(0,10).map(x=>{
+          const cls = x.correct ? 'good' : 'bad';
+          const mk = x.correct ? '✔' : '✘';
+          return `<span class="adm-chip ${cls}">${esc(x.item||x.category||'?')} ${mk}</span>`;
+        }).join('');
+        const more = (s.details||[]).length > 10 ? `<span class="adm-chip">+${(s.details||[]).length-10}</span>` : '';
+        return `<div class="adm-day-item"><span>${esc(s.mode)} · ${esc(s.category)} ${det}${more}</span><span style="font-size:12px;color:#6366f1;font-weight:700">${s.correct_count}/${s.total_questions}</span></div>`;
+      }).join('') || '';
+
+      const diagHtml = (d.diag||[]).map(g=>{
+        const cls = g.status==='unknown' ? 'bad' : (g.status==='unsure' ? 'warn' : 'good');
+        return `<span class="adm-chip ${cls}">${esc(g.pinyin)} ${g.status==='known'?'✓':(g.status==='unsure'?'~':'✗')}</span>`;
+      }).join('') || '';
+
+      box.innerHTML = `
+        <div class="adm-day-head"><span>📅 ${esc(date)} · ${d.listens_count||0}次听读${(d.sessions||[]).length?' · '+(d.sessions||[]).length+'次听写':''}</span><button class="adm-day-close">收起</button></div>
+        <div class="adm-day-sub">🔊 听读（${d.listens_count||0}次）</div>
+        <div class="adm-day-list">${listensHtml}</div>
+        ${sessionsHtml ? `<div class="adm-day-sub">✍️ 听写</div><div class="adm-day-list">${sessionsHtml}</div>` : ''}
+        ${diagHtml ? `<div class="adm-day-sub">🧪 诊断</div><div>${diagHtml}</div>` : ''}
+      `;
+      box.querySelector('.adm-day-close').addEventListener('click', ()=>{
+        box.classList.remove('open');
+        box.innerHTML = '';
+        delete box.dataset.date;
+      });
+    }).catch(e=>{
+      box.innerHTML = '<div class="adm-day-head"><span>📅 ' + esc(date) + '</span><span class="adm-day-close" style="color:#ef4444">' + esc(e.message || '加载失败') + '</span></div>';
+    });
   }
 
   function esc(s){

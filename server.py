@@ -564,10 +564,16 @@ def api_admin_user_detail(uid):
         diag_unsure = db.execute("SELECT COUNT(*) as c FROM diagnosis_results WHERE user_id=? AND status='unsure'", (uid,)).fetchone()['c']
         diag_unknown = db.execute("SELECT COUNT(*) as c FROM diagnosis_results WHERE user_id=? AND status='unknown'", (uid,)).fetchone()['c']
 
-        # Daily activity (last 30 days)
+        # Daily activity (last 30 days) — listening + dictation sessions
         daily = db.execute("""
-            SELECT date(listened_at) as d, COUNT(*) as c FROM listening_records WHERE user_id=? AND listened_at >= date('now','-29 days') GROUP BY d ORDER BY d
-        """, (uid,)).fetchall()
+            SELECT d, SUM(cnt) as c FROM (
+                SELECT date(listened_at) as d, COUNT(*) as cnt FROM listening_records
+                WHERE user_id=? AND listened_at >= date('now','-29 days') GROUP BY d
+                UNION ALL
+                SELECT date(completed_at) as d, 1 as cnt FROM dictation_sessions
+                WHERE user_id=? AND completed_at >= date('now','-29 days')
+            ) GROUP BY d ORDER BY d
+        """, (uid, uid)).fetchall()
 
     return jsonify({
         'user': dict(user),
@@ -578,6 +584,50 @@ def api_admin_user_detail(uid):
         'diag': [dict(r) for r in diag],
         'diag_counts': {'known': diag_known, 'unsure': diag_unsure, 'unknown': diag_unknown},
         'daily': [dict(r) for r in daily]
+    })
+
+@app.route('/api/admin/users/<int:uid>/daily', methods=['GET'])
+@require_admin
+def api_admin_user_daily(uid):
+    """管理员按日查看某用户的学习明细"""
+    date = request.args.get('date', '')
+    if not date:
+        return jsonify({'error': '缺少日期'}), 400
+    with get_db() as db:
+        user = db.execute("SELECT id FROM users WHERE id=?", (uid,)).fetchone()
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+        listens = db.execute(
+            "SELECT category, item, listened_at FROM listening_records "
+            "WHERE user_id=? AND date(listened_at)=? ORDER BY listened_at",
+            (uid, date)
+        ).fetchall()
+        sessions = db.execute(
+            "SELECT mode, category, total_questions, correct_count, wrong_count, details, completed_at "
+            "FROM dictation_sessions WHERE user_id=? AND date(completed_at)=? ORDER BY completed_at",
+            (uid, date)
+        ).fetchall()
+        diag = db.execute(
+            "SELECT category, pinyin, status FROM diagnosis_results "
+            "WHERE user_id=? AND date(diagnosed_at)=? ORDER BY category, pinyin",
+            (uid, date)
+        ).fetchall()
+    sessions_out = []
+    for s in sessions:
+        d = dict(s)
+        try:
+            d['details'] = json.loads(d.get('details') or '[]')
+        except Exception:
+            d['details'] = []
+        sessions_out.append(d)
+    return jsonify({
+        'date': date,
+        'listens': [dict(r) for r in listens],
+        'sessions': sessions_out,
+        'diag': [dict(r) for r in diag],
+        'listens_count': len(listens),
+        'sessions_count': len(sessions_out),
+        'diag_count': len(diag)
     })
 
 # ═══════════════════════════════════════════════════════════════
