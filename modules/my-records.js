@@ -41,11 +41,6 @@
     return String(s == null ? '' : s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 
-  function fmtLocal(dt){
-    const p = n=>String(n).padStart(2,'0');
-    return dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate());
-  }
-
   function renderNotLoggedIn(c){
     c.innerHTML = `
       <div class="mr-wrap">
@@ -68,20 +63,8 @@
     const dc = {};
     (data.diag||[]).forEach(g=>{ dc[g.status] = (dc[g.status]||0)+1 });
 
-    // Daily bars
-    const dailyMap = {};
-    (data.daily||[]).forEach(x=>{ dailyMap[x.d] = x.c });
-    const days = [];
-    for(let i=29; i>=0; i--){
-      const dt = new Date(Date.now() - i*86400000);
-      days.push({key: fmtLocal(dt), count: dailyMap[fmtLocal(dt)] || 0});
-    }
-    const maxC = Math.max(1, ...days.map(x=>x.count));
-    const dayBars = days.map(x=>`
-      <div class="d" title="${x.key} · ${x.count}次">
-        <div class="dv" style="height:${Math.max(2, Math.round(x.count/maxC*100))}%"></div>
-        <div class="dl">${x.key.slice(5)}</div>
-      </div>`).join('');
+    // Daily bars (shared renderer from admin.js)
+    const activityHtml = window.renderActivityBars ? window.renderActivityBars(data.daily||[]) : '';
 
     // Recent listening (top 12)
     const recentHtml = (data.recent_listen || []).slice(0,12).map(r=>
@@ -125,7 +108,7 @@
 
         <div class="mr-card">
           <div class="mr-sec">📅 近30天活跃 <span class="bar"></span></div>
-          <div class="mr-daily">${dayBars}</div>
+          ${activityHtml}
         </div>
 
         <div class="mr-card">

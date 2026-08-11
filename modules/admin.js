@@ -39,6 +39,17 @@
       .adm-daily .d{display:flex;flex-direction:column;align-items:center;flex:1;min-width:22px}
       .adm-daily .dv{width:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;min-height:2px}
       .adm-daily .dl{font-size:9px;color:#94a3b8;margin-top:3px;transform:rotate(-45deg);white-space:nowrap}
+      .act-wrap{width:100%}
+      .act-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+      .act-stat{display:inline-flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 14px;font-size:11px;color:#64748b}
+      .act-stat b{font-size:18px;color:#4338ca}
+      .act-daily{display:flex;align-items:flex-end;gap:2px;height:72px;padding:8px 4px 0;overflow-x:auto}
+      .act-daily .d{display:flex;flex-direction:column;align-items:center;flex:1;min-width:20px;height:100%;justify-content:flex-end}
+      .act-daily .dv{width:70%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;position:relative;min-height:4px;transition:height .3s}
+      .act-daily .dv-empty{background:#f1f5f9;height:4px!important;min-height:4px;width:70%}
+      .act-daily .dv-n{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#6366f1;font-weight:700;white-space:nowrap}
+      .act-daily .dl{font-size:8px;color:#cbd5e1;margin-top:4px;white-space:nowrap;max-width:100%;overflow:hidden}
+      .act-daily .d.active .dl{color:#94a3b8;font-weight:600}
       .adm-empty{text-align:center;color:#94a3b8;font-size:13px;padding:18px 0}
       .adm-detail-item{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed #f1f5f9;font-size:14px}
       .adm-detail-item:last-child{border-bottom:none}
@@ -176,6 +187,53 @@
     t._timer = setTimeout(()=>{ t.style.opacity = '0' }, 2500);
   }
 
+  /* ═══ ACTIVITY BARS (shared by admin + my-records) ═══
+     daily: [{d:'YYYY-MM-DD', c:N}] (backend grouped, last 30 days)
+     Renders: summary stats + only-active-day bars with sparse labels. */
+  window.renderActivityBars = function(daily){
+    const dailyMap = {};
+    (daily||[]).forEach(x=>{ dailyMap[x.d] = x.c });
+
+    // Build last-30-days array
+    const days = [];
+    for(let i=29; i>=0; i--){
+      const dt = new Date(Date.now() - i*86400000);
+      days.push({key: fmtLocal(dt), count: dailyMap[fmtLocal(dt)] || 0});
+    }
+    const maxC = Math.max(1, ...days.map(x=>x.count));
+    const activeDays = days.filter(x=>x.count>0);
+    const totalCount = days.reduce((s,x)=>s+x.count, 0);
+
+    // Longest consecutive streak
+    let streak = 0, best = 0;
+    days.forEach(x=>{
+      if(x.count>0){ streak++; best = Math.max(best, streak); }
+      else streak = 0;
+    });
+
+    // Show month label for the 1st of each month, day label for active days otherwise
+    const bars = days.map(x=>{
+      const dt = new Date(x.key + 'T00:00:00');
+      let label = x.key.slice(5);
+      if(dt.getDate() === 1) label = x.key.slice(0,7); // "2026-08"
+      const isActive = x.count > 0;
+      return `
+        <div class="d${isActive?' active':''}" title="${x.key} · ${x.count}次${isActive?'':'（未学习）'}">
+          ${isActive ? `<div class="dv" style="height:${Math.max(4, Math.round(x.count/maxC*100))}%"><span class="dv-n">${x.count}</span></div>` : '<div class="dv dv-empty"></div>'}
+          <div class="dl">${label}</div>
+        </div>`;
+    }).join('');
+
+    const stats = `
+      <div class="act-stats">
+        <span class="act-stat"><b>${activeDays.length}</b>活跃天数</span>
+        <span class="act-stat"><b>${totalCount}</b>学习次数</span>
+        <span class="act-stat"><b>${best}</b>最长连续(天)</span>
+      </div>`;
+
+    return `<div class="act-wrap">${stats}<div class="act-daily">${bars}</div></div>`;
+  };
+
   function renderUserDetail(d){
     currentUid = d.user.id;
     const c = $('app');
@@ -183,26 +241,8 @@
     const dc = d.diag_counts || {};
     const knownPct = d.listen_by_cat && d.listen_by_cat.length ? '' : '';
 
-    // Daily activity bars (last 30 days)
-    const dailyMap = {};
-    (d.daily||[]).forEach(x=>{ dailyMap[x.d] = x.c });
-    const days = [];
-    for(let i=29; i>=0; i--){
-      const dt = new Date(Date.now() - i*86400000);
-      const key = dt.toISOString().slice(0,10);
-      const localKey = fmtLocal(dt);
-      days.push({key: localKey, count: dailyMap[localKey] || 0});
-    }
-    const maxC = Math.max(1, ...days.map(x=>x.count));
-    function fmtLocal(dt){
-      const p = n=>String(n).padStart(2,'0');
-      return dt.getFullYear()+'-'+p(dt.getMonth()+1)+'-'+p(dt.getDate());
-    }
-    const dayBars = days.map(x=>`
-      <div class="d" title="${x.key} · ${x.count}次">
-        <div class="dv" style="height:${Math.max(2, Math.round(x.count/maxC*100))}%"></div>
-        <div class="dl">${x.key.slice(5)}</div>
-      </div>`).join('');
+    // Daily activity bars (last 30 days) — optimized view
+    const activityHtml = window.renderActivityBars ? window.renderActivityBars(d.daily||[]) : '';
 
     // Recent listening
     const recent = (d.listen_recent||[]).slice(0,15).map(r=>
@@ -248,7 +288,7 @@
             <span class="adm-stat">❌ 不会 ${dc.unknown||0}</span>
           </div>
           <div class="adm-sec">📅 近30天活跃 <span class="bar"></span></div>
-          <div class="adm-daily">${dayBars}</div>
+          ${activityHtml}
         </div>
 
         <div class="adm-card">
