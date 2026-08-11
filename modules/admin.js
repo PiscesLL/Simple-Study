@@ -43,8 +43,8 @@
       .act-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
       .act-stat{display:inline-flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 14px;font-size:11px;color:#64748b}
       .act-stat b{font-size:18px;color:#4338ca}
-      .act-daily{display:flex;align-items:flex-end;gap:2px;height:72px;padding:8px 4px 0;overflow-x:auto}
-      .act-daily .d{display:flex;flex-direction:column;align-items:center;flex:1;min-width:20px;height:100%;justify-content:flex-end}
+      .act-daily{display:flex;align-items:flex-end;gap:2px;height:72px;padding:18px 2px 0;width:100%}
+      .act-daily .d{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;height:100%;justify-content:flex-end}
       .act-daily .dv{width:70%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;position:relative;min-height:4px;transition:height .3s}
       .act-daily .dv-empty{background:#f1f5f9;height:4px!important;min-height:4px;width:70%}
       .act-daily .dv-n{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#6366f1;font-weight:700;white-space:nowrap}
@@ -211,16 +211,18 @@
       else streak = 0;
     });
 
-    // Show month label for the 1st of each month, day label for active days otherwise
+    // 标签稀疏化：月初显示"YYYY-MM"，最后一天（今天）显示"今天"，其余不显示
+    const todayKey = days[days.length-1].key;
     const bars = days.map(x=>{
       const dt = new Date(x.key + 'T00:00:00');
-      let label = x.key.slice(5);
+      let label = '';
       if(dt.getDate() === 1) label = x.key.slice(0,7); // "2026-08"
+      else if(x.key === todayKey) label = '今天';
       const isActive = x.count > 0;
       return `
         <div class="d${isActive?' active':''}" title="${x.key} · ${x.count}次${isActive?'':'（未学习）'}">
           ${isActive ? `<div class="dv" style="height:${Math.max(4, Math.round(x.count/maxC*100))}%"><span class="dv-n">${x.count}</span></div>` : '<div class="dv dv-empty"></div>'}
-          <div class="dl">${label}</div>
+          ${label ? `<div class="dl">${label}</div>` : ''}
         </div>`;
     }).join('');
 

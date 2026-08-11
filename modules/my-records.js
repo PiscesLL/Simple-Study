@@ -20,10 +20,6 @@
       .mr-chip.good{background:#dcfce7;color:#16a34a}
       .mr-chip.bad{background:#fee2e2;color:#dc2626}
       .mr-chip.warn{background:#fef9c3;color:#ca8a04}
-      .mr-daily{display:flex;align-items:flex-end;gap:3px;height:60px;padding:8px 4px 0;overflow-x:auto}
-      .mr-daily .d{display:flex;flex-direction:column;align-items:center;flex:1;min-width:22px}
-      .mr-daily .dv{width:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;min-height:2px}
-      .mr-daily .dl{font-size:9px;color:#94a3b8;margin-top:3px;transform:rotate(-45deg);white-space:nowrap}
       .mr-empty{text-align:center;color:#94a3b8;font-size:13px;padding:18px 0}
       .mr-session{border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fafafa}
       .mr-session-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#334155}
