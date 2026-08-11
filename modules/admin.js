@@ -225,7 +225,7 @@
       else if(x.key === todayKey) label = '今天';
       const isActive = x.count > 0;
       return `
-        <div class="d${isActive?' active':''}" title="${x.key} · ${x.count}次${isActive?'':'（未学习）'}">
+        <div class="d${isActive?' active':''}" data-date="${x.key}" title="${x.key} · ${x.count}次${isActive?'':'（未学习）'}">
           ${isActive ? `<div class="dv" style="height:${Math.max(4, Math.round(x.count/maxC*100))}%"><span class="dv-n">${x.count}</span></div>` : '<div class="dv dv-empty"></div>'}
           ${label ? `<div class="dl">${label}</div>` : ''}
         </div>`;

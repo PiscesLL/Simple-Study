@@ -427,6 +427,48 @@ def api_stats(user):
         'diag': [dict(r) for r in diag]
     })
 
+@app.route('/api/stats/daily', methods=['GET'])
+@require_auth
+def api_stats_daily(user):
+    """按日统计：某天的听读明细、听写会话、诊断情况"""
+    date = request.args.get('date', '')
+    if not date:
+        return jsonify({'error': '缺少日期'}), 400
+    uid = user['id']
+    with get_db() as db:
+        listens = db.execute(
+            "SELECT category, item, listened_at FROM listening_records "
+            "WHERE user_id=? AND date(listened_at)=? ORDER BY listened_at",
+            (uid, date)
+        ).fetchall()
+        sessions = db.execute(
+            "SELECT mode, category, total_questions, correct_count, wrong_count, details, completed_at "
+            "FROM dictation_sessions WHERE user_id=? AND date(completed_at)=? ORDER BY completed_at",
+            (uid, date)
+        ).fetchall()
+        diag = db.execute(
+            "SELECT category, pinyin, status FROM diagnosis_results "
+            "WHERE user_id=? AND date(diagnosed_at)=? ORDER BY category, pinyin",
+            (uid, date)
+        ).fetchall()
+    sessions_out = []
+    for s in sessions:
+        d = dict(s)
+        try:
+            d['details'] = json.loads(d.get('details') or '[]')
+        except Exception:
+            d['details'] = []
+        sessions_out.append(d)
+    return jsonify({
+        'date': date,
+        'listens': [dict(r) for r in listens],
+        'sessions': sessions_out,
+        'diag': [dict(r) for r in diag],
+        'listens_count': len(listens),
+        'sessions_count': len(sessions_out),
+        'diag_count': len(diag)
+    })
+
 # ═══════════════════════════════════════════════════════════════
 #  ADMIN API
 # ═══════════════════════════════════════════════════════════════

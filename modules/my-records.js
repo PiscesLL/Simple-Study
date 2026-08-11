@@ -21,6 +21,17 @@
       .mr-chip.bad{background:#fee2e2;color:#dc2626}
       .mr-chip.warn{background:#fef9c3;color:#ca8a04}
       .mr-empty{text-align:center;color:#94a3b8;font-size:13px;padding:18px 0}
+      .act-daily .d.active{cursor:pointer}
+      .act-daily .d.active:hover .dv{filter:brightness(1.15)}
+      .mr-day-detail{margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:10px;display:none}
+      .mr-day-detail.open{display:block}
+      .mr-day-head{font-size:13px;font-weight:700;color:#334155;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+      .mr-day-close{background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;text-decoration:underline}
+      .mr-day-sub{font-size:12px;font-weight:700;color:#64748b;margin:10px 0 4px}
+      .mr-day-list{max-height:160px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;padding:6px 8px;background:#fafafa}
+      .mr-day-item{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:13px;color:#475569;border-bottom:1px dashed #f1f5f9}
+      .mr-day-item:last-child{border-bottom:none}
+      .mr-day-time{font-size:11px;color:#94a3b8}
       .mr-session{border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fafafa}
       .mr-session-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#334155}
       .mr-detail-item{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed #f1f5f9;font-size:14px}
@@ -105,6 +116,7 @@
         <div class="mr-card">
           <div class="mr-sec">📅 近30天活跃 <span class="bar"></span></div>
           ${activityHtml}
+          <div class="mr-day-detail" id="mrDayDetail"></div>
         </div>
 
         <div class="mr-card">
@@ -124,6 +136,74 @@
         </div>
       </div>
     `;
+
+    // 活跃柱子点击 → 查看当日详情
+    const dailyEl = c.querySelector('.act-daily');
+    if(dailyEl){
+      dailyEl.addEventListener('click', e=>{
+        const bar = e.target.closest('.d.active');
+        if(!bar) return;
+        const date = bar.getAttribute('data-date');
+        if(date) loadDayDetail(c, date);
+      });
+    }
+  }
+
+  function loadDayDetail(c, date){
+    const box = c.querySelector('#mrDayDetail');
+    if(!box) return;
+    if(box.dataset.date === date && box.classList.contains('open')){
+      box.classList.remove('open');
+      return;
+    }
+    box.classList.add('open');
+    box.dataset.date = date;
+    box.innerHTML = '<div class="mr-day-head"><span>📅 ' + esc(date) + '</span><span class="mr-empty" style="padding:6px 0">加载中...</span></div>';
+    window.api.request('GET', '/stats/daily?date=' + encodeURIComponent(date)).then(d=>{
+      if(!d || d.date !== box.dataset.date) return;
+      // 听读明细：按 item 聚合去重计数
+      const itemCount = {};
+      (d.listens||[]).forEach(l=>{
+        const k = (l.category||'') + '|' + (l.item||'');
+        itemCount[k] = (itemCount[k]||0) + 1;
+      });
+      const listensHtml = Object.keys(itemCount).map(k=>{
+        const [cat, item] = k.split('|');
+        return `<div class="mr-day-item"><span><span class="mr-chip">${esc(cat)}</span> ${esc(item)}</span><span class="mr-chip">${itemCount[k]}次</span></div>`;
+      }).join('') || '<div class="mr-day-item">无听读记录</div>';
+
+      // 听写会话
+      const sessionsHtml = (d.sessions||[]).map(s=>{
+        const det = (s.details||[]).slice(0,10).map(x=>{
+          const cls = x.correct ? 'good' : 'bad';
+          const mk = x.correct ? '✔' : '✘';
+          return `<span class="mr-chip ${cls}">${esc(x.item||x.category||'?')} ${mk}</span>`;
+        }).join('');
+        const more = (s.details||[]).length > 10 ? `<span class="mr-chip">+${(s.details||[]).length-10}</span>` : '';
+        return `<div class="mr-day-item"><span>${esc(s.mode)} · ${esc(s.category)} ${det}${more}</span><span style="font-size:12px;color:#6366f1;font-weight:700">${s.correct_count}/${s.total_questions}</span></div>`;
+      }).join('') || '';
+
+      // 诊断
+      const diagHtml = (d.diag||[]).map(g=>{
+        const cls = g.status==='unknown' ? 'bad' : (g.status==='unsure' ? 'warn' : 'good');
+        return `<span class="mr-chip ${cls}">${esc(g.pinyin)} ${g.status==='known'?'✓':(g.status==='unsure'?'~':'✗')}</span>`;
+      }).join('') || '';
+
+      box.innerHTML = `
+        <div class="mr-day-head"><span>📅 ${esc(date)} · ${d.listens_count||0}次听读${(d.sessions||[]).length?' · '+(d.sessions||[]).length+'次听写':''}</span><button class="mr-day-close">收起</button></div>
+        <div class="mr-day-sub">🔊 听读（${d.listens_count||0}次）</div>
+        <div class="mr-day-list">${listensHtml}</div>
+        ${sessionsHtml ? `<div class="mr-day-sub">✍️ 听写</div><div class="mr-day-list">${sessionsHtml}</div>` : ''}
+        ${diagHtml ? `<div class="mr-day-sub">🧪 诊断</div><div>${diagHtml}</div>` : ''}
+      `;
+      box.querySelector('.mr-day-close').addEventListener('click', ()=>{
+        box.classList.remove('open');
+        box.innerHTML = '';
+        delete box.dataset.date;
+      });
+    }).catch(()=>{
+      box.innerHTML = '<div class="mr-day-head"><span>📅 ' + esc(date) + '</span><span class="mr-day-close" style="color:#ef4444">加载失败</span></div>';
+    });
   }
 
   registerModule('my-records', {
