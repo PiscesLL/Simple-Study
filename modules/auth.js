@@ -348,6 +348,14 @@
 
   /* ═══ AUTH UI UPDATE ═══ */
   function updateAuthUI(){
+    const loggedIn = window.api.isLoggedIn();
+    // Show/hide "my records" nav entry (desktop sidebar + mobile topbar)
+    const navEntry = document.getElementById('navMyRecords');
+    if(navEntry) navEntry.style.display = loggedIn ? '' : 'none';
+    document.querySelectorAll('.top-leaf[data-page="my-records"]').forEach(el=>{
+      el.style.display = loggedIn ? '' : 'none';
+    });
+
     const sidebar = document.querySelector('.sidebar-brand');
     if(!sidebar) return;
     // Remove old auth UI

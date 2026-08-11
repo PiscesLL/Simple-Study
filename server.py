@@ -385,6 +385,34 @@ def api_stats(user):
         dict_count = db.execute("SELECT COUNT(*) as c FROM dictation_sessions WHERE user_id=?", (uid,)).fetchone()['c']
         total_q = db.execute("SELECT IFNULL(SUM(total_questions),0) as c FROM dictation_sessions WHERE user_id=?", (uid,)).fetchone()['c']
         total_correct = db.execute("SELECT IFNULL(SUM(correct_count),0) as c FROM dictation_sessions WHERE user_id=?", (uid,)).fetchone()['c']
+        # Daily activity (last 30 days) — listening + dictation sessions
+        daily = db.execute("""
+            SELECT d, SUM(cnt) as c FROM (
+                SELECT date(listened_at) as d, COUNT(*) as cnt FROM listening_records
+                WHERE user_id=? AND listened_at >= date('now','-29 days') GROUP BY d
+                UNION ALL
+                SELECT date(completed_at) as d, 1 as cnt FROM dictation_sessions
+                WHERE user_id=? AND completed_at >= date('now','-29 days')
+            ) GROUP BY d ORDER BY d
+        """, (uid, uid)).fetchall()
+        # Dictation sessions summary (recent 20, with details)
+        sessions = db.execute(
+            "SELECT id, mode, category, total_questions, correct_count, wrong_count, details, completed_at FROM dictation_sessions WHERE user_id=? ORDER BY completed_at DESC LIMIT 20",
+            (uid,)
+        ).fetchall()
+        sessions_out = []
+        for s in sessions:
+            d = dict(s)
+            try:
+                d['details'] = json.loads(d.get('details') or '[]')
+            except Exception:
+                d['details'] = []
+            sessions_out.append(d)
+        # Diagnosis results
+        diag = db.execute(
+            "SELECT category, pinyin, status, diagnosed_at FROM diagnosis_results WHERE user_id=? ORDER BY category, pinyin",
+            (uid,)
+        ).fetchall()
     accuracy = round(total_correct / total_q * 100, 1) if total_q > 0 else 0
     return jsonify({
         'total_listens': total_listens,
@@ -393,7 +421,10 @@ def api_stats(user):
         'dictation_sessions': dict_count,
         'total_questions': total_q,
         'total_correct': total_correct,
-        'accuracy': accuracy
+        'accuracy': accuracy,
+        'daily': [dict(r) for r in daily],
+        'sessions': sessions_out,
+        'diag': [dict(r) for r in diag]
     })
 
 # ═══════════════════════════════════════════════════════════════
