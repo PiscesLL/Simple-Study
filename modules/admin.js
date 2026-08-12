@@ -48,7 +48,7 @@
       .act-daily .dv{width:70%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;position:relative;min-height:4px;transition:height .3s}
       .act-daily .dv-empty{background:#f1f5f9;height:4px!important;min-height:4px;width:70%}
       .act-daily .dv-n{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#6366f1;font-weight:700;white-space:nowrap}
-      .act-daily .dl{font-size:8px;color:#cbd5e1;margin-top:4px;white-space:nowrap;max-width:100%;overflow:hidden}
+      .act-daily .dl{font-size:8px;color:#cbd5e1;margin-top:4px;white-space:nowrap;overflow:visible;text-align:center}
       .act-daily .d.active .dl{color:#94a3b8;font-weight:600}
       .adm-empty{text-align:center;color:#94a3b8;font-size:13px;padding:18px 0}
       .adm-detail-item{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed #f1f5f9;font-size:14px}
@@ -227,12 +227,12 @@
       else streak = 0;
     });
 
-    // 标签稀疏化：月初显示"YYYY-MM"，最后一天（今天）显示"今天"，其余不显示
+    // 标签稀疏化：月初显示"8月"（短格式，柱子窄放不下 YYYY-MM），最后一天显示"今天"
     const todayKey = days[days.length-1].key;
     const bars = days.map(x=>{
       const dt = new Date(x.key + 'T00:00:00');
       let label = '';
-      if(dt.getDate() === 1) label = x.key.slice(0,7); // "2026-08"
+      if(dt.getDate() === 1) label = (dt.getMonth()+1) + '月'; // "8月"
       else if(x.key === todayKey) label = '今天';
       const isActive = x.count > 0;
       return `
@@ -335,7 +335,7 @@
         const bar = e.target.closest('.d.active');
         if(!bar) return;
         const date = bar.getAttribute('data-date');
-        if(date) loadAdminDayDetail(c, uid, date);
+        if(date) loadAdminDayDetail(c, currentUid, date);
       });
     }
   }
