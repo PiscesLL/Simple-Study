@@ -12,46 +12,49 @@
     const s = document.createElement('style');
     s.id = STYLE_ID;
     s.textContent = `
-      .adm-wrap{width:100%;max-width:760px;margin:0 auto;padding:8px 4px 32px}
+      .adm-wrap{width:100%;max-width:760px;margin:0 auto;padding:16px 4px 32px}
       .adm-title{font-size:20px;font-weight:800;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-      .adm-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-      .adm-input{width:100%;padding:12px 14px;border:2px solid #e2e8f0;border-radius:10px;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:10px}
-      .adm-input:focus{border-color:#6366f1}
-      .adm-btn{display:inline-block;padding:10px 22px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;transition:all .2s}
+      .adm-card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 12px rgba(99,102,241,.06)}
+      .adm-input{width:100%;padding:13px 16px;border:2px solid #e2e8f0;border-radius:12px;font-size:15px;outline:none;box-sizing:border-box;margin-bottom:12px;transition:border-color .2s;background:#fafbff}
+      .adm-input:focus{border-color:#6366f1;background:#fff}
+      .adm-btn{display:inline-block;padding:12px 24px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 4px 16px rgba(99,102,241,.3);transition:all .2s}
       .adm-btn:active{transform:scale(.97)}
-      .adm-btn.ghost{background:#fff;color:#6366f1;border:2px solid #6366f1}
-      .adm-btn.danger{background:#fff;color:#ef4444;border:2px solid #ef4444}
-      .adm-err{color:#ef4444;font-size:13px;margin-bottom:8px;display:none}
-      .adm-user-row{display:flex;justify-content:space-between;align-items:center;padding:12px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+      .adm-btn.ghost{background:#fff;color:#6366f1;border:2px solid #6366f1;box-shadow:none}
+      .adm-btn.danger{background:#fff;color:#ef4444;border:2px solid #ef4444;box-shadow:none}
+      .adm-err{color:#ef4444;font-size:13px;margin-bottom:8px;display:none;background:#fef2f2;border-radius:8px;padding:8px 12px}
+      .adm-user-row{display:flex;justify-content:space-between;align-items:center;padding:14px 6px;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background .15s}
       .adm-user-row:last-child{border-bottom:none}
       .adm-user-row:hover{background:#f8fafc}
-      .adm-uname{font-size:15px;font-weight:700;color:#1e293b}
-      .adm-uinfo{font-size:12px;color:#94a3b8;margin-top:2px}
-      .adm-stat{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;color:#6366f1;background:#eef2ff;border-radius:6px;padding:2px 8px;margin:2px}
-      .adm-sec{font-size:13px;font-weight:700;color:#64748b;margin:14px 0 8px;display:flex;align-items:center;gap:6px}
+      .adm-user-main{display:flex;align-items:center;gap:12px;min-width:0}
+      .adm-avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(99,102,241,.3)}
+      .adm-uname{font-size:15px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .adm-uinfo{font-size:12px;color:#94a3b8;margin-top:3px}
+      .adm-stats{display:flex;gap:5px;flex-wrap:nowrap}
+      .adm-stat{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;color:#6366f1;background:#eef2ff;border-radius:8px;padding:3px 8px;white-space:nowrap}
+      .adm-sec{font-size:13px;font-weight:700;color:#64748b;margin:14px 0 10px;display:flex;align-items:center;gap:6px}
       .adm-sec .bar{flex:1;height:1px;background:#e2e8f0}
-      .adm-chip{display:inline-block;font-size:12px;border-radius:6px;padding:2px 8px;margin:2px;background:#f1f5f9;color:#475569}
+      .adm-chip{display:inline-block;font-size:12px;border-radius:8px;padding:2px 8px;margin:2px;background:#f1f5f9;color:#475569}
       .adm-chip.good{background:#dcfce7;color:#16a34a}
       .adm-chip.bad{background:#fee2e2;color:#dc2626}
       .adm-chip.warn{background:#fef9c3;color:#ca8a04}
-      .adm-back{background:none;border:1.5px solid #cbd5e1;border-radius:8px;color:#475569;font-size:13px;font-weight:600;padding:6px 14px;cursor:pointer;margin-bottom:10px}
+      .adm-back{background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;color:#475569;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
       .adm-daily{display:flex;align-items:flex-end;gap:3px;height:60px;padding:8px 4px 0;overflow-x:auto}
       .adm-daily .d{display:flex;flex-direction:column;align-items:center;flex:1;min-width:22px}
       .adm-daily .dv{width:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;min-height:2px}
       .adm-daily .dl{font-size:9px;color:#94a3b8;margin-top:3px;transform:rotate(-45deg);white-space:nowrap}
       .act-wrap{width:100%}
-      .act-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px}
-      .act-nav-btn{background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;color:#475569;font-size:16px;font-weight:700;width:30px;height:30px;line-height:1;cursor:pointer;padding:0}
+      .act-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px}
+      .act-nav-btn{background:#fff;border:1.5px solid #cbd5e1;border-radius:10px;color:#475569;font-size:16px;font-weight:700;width:32px;height:32px;line-height:1;cursor:pointer;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
       .act-nav-btn:disabled{opacity:.35;cursor:default}
       .act-nav-btn:active:not(:disabled){transform:scale(.94)}
       .act-month{font-size:14px;font-weight:700;color:#334155;min-width:90px;text-align:center}
       .act-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-      .act-stat{display:inline-flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 14px;font-size:11px;color:#64748b}
-      .act-stat b{font-size:18px;color:#4338ca}
-      .act-daily{display:flex;align-items:flex-end;gap:2px;height:72px;padding:18px 2px 0;width:100%}
+      .act-stat{display:inline-flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:8px 16px;font-size:11px;color:#64748b}
+      .act-stat b{font-size:20px;color:#4338ca}
+      .act-daily{display:flex;align-items:flex-end;gap:2px;height:80px;padding:18px 2px 0;width:100%}
       .act-daily .d{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;height:100%;justify-content:flex-end}
-      .act-daily .dv{width:70%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;position:relative;min-height:4px;transition:height .3s}
-      .act-daily .dv-empty{background:#f1f5f9;height:4px!important;min-height:4px;width:70%}
+      .act-daily .dv{width:70%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:4px 4px 0 0;position:relative;min-height:4px;transition:height .3s}
+      .act-daily .dv-empty{background:#f1f5f9;height:4px!important;min-height:4px;width:70%;border-radius:2px}
       .act-daily .dv-n{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#6366f1;font-weight:700;white-space:nowrap}
       .act-scale{display:flex;gap:2px;margin-top:4px;width:100%}
       .act-scale .act-scl{flex:1 1 0;min-width:0;font-size:8px;color:transparent;text-align:center}
@@ -59,10 +62,10 @@
       .act-daily .d.active{cursor:pointer}
       .act-daily .d.active:hover .dv{filter:brightness(1.15)}
       .act-daily .d.today .dv{box-shadow:0 0 0 1.5px #6366f1}
-      .adm-empty{text-align:center;color:#94a3b8;font-size:13px;padding:18px 0}
-      .adm-detail-item{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed #f1f5f9;font-size:14px}
+      .adm-empty{text-align:center;color:#94a3b8;font-size:13px;padding:24px 0}
+      .adm-detail-item{display:flex;justify-content:space-between;padding:7px 2px;border-bottom:1px dashed #f1f5f9;font-size:14px}
       .adm-detail-item:last-child{border-bottom:none}
-      .adm-session{border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fafafa}
+      .adm-session{border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:8px;background:#fafbfe}
       .adm-session-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#334155}
       .adm-session .adm-chip{font-size:11px}
       .adm-logout{float:right;font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;text-decoration:underline}
@@ -71,10 +74,27 @@
       .adm-day-head{font-size:13px;font-weight:700;color:#334155;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
       .adm-day-close{background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;text-decoration:underline}
       .adm-day-sub{font-size:12px;font-weight:700;color:#64748b;margin:10px 0 4px}
-      .adm-day-list{max-height:160px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;padding:6px 8px;background:#fafafa}
+      .adm-day-list{max-height:160px;overflow-y:auto;border:1px solid #f1f5f9;border-radius:8px;padding:6px 8px;background:#fafbfe}
       .adm-day-item{display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:13px;color:#475569;border-bottom:1px dashed #f1f5f9}
       .adm-day-item:last-child{border-bottom:none}
       .adm-day-time{font-size:11px;color:#94a3b8}
+      /* 登录页 */
+      .adm-login-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100dvh - 96px);padding:20px}
+      .adm-login-logo{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 8px 24px rgba(99,102,241,.35);margin-bottom:16px}
+      .adm-login-title{font-size:20px;font-weight:800;color:#1e293b;margin-bottom:4px}
+      .adm-login-sub{font-size:13px;color:#94a3b8;margin-bottom:24px}
+      .adm-login-card{width:100%;max-width:340px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;box-shadow:0 8px 30px rgba(99,102,241,.1)}
+      /* spinner */
+      .adm-spinner{width:22px;height:22px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:adm-spin .7s linear infinite;margin:10px auto}
+      @keyframes adm-spin{to{transform:rotate(360deg)}}
+      /* 顶部统计网格 */
+      .adm-overview{display:flex;flex-wrap:wrap;gap:8px}
+      .adm-ov-item{flex:1 1 calc(33% - 8px);min-width:90px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 8px;text-align:center}
+      .adm-ov-item b{display:block;font-size:20px;color:#4338ca;margin-bottom:2px}
+      .adm-ov-item span{font-size:11px;color:#64748b}
+      .adm-ov-item.known b{color:#16a34a}
+      .adm-ov-item.unsure b{color:#ca8a04}
+      .adm-ov-item.unknown b{color:#dc2626}
     `;
     document.head.appendChild(s);
   }
@@ -104,12 +124,13 @@
     currentUid = null;
     const c = $('app');
     c.innerHTML = `
-      <style>${''}</style>
-      <div class="adm-wrap">
-        <div class="adm-title">🔧 学习记录管理</div>
-        <div class="adm-card">
+      <div class="adm-login-wrap">
+        <div class="adm-login-logo">📚</div>
+        <div class="adm-login-title">学习乐园</div>
+        <div class="adm-login-sub">管理后台 · 请输入管理密码</div>
+        <div class="adm-login-card">
           <div class="adm-err" id="admErr"></div>
-          <input class="adm-input" id="admPw" type="password" placeholder="输入管理密码" autocomplete="current-password">
+          <input class="adm-input" id="admPw" type="password" placeholder="管理密码" autocomplete="current-password">
           <button class="adm-btn" id="admLogin" style="width:100%">进入后台</button>
         </div>
       </div>
@@ -140,6 +161,8 @@
   }
 
   function loadUsers(){
+    const c = $('app');
+    if(c) c.innerHTML = '<div class="adm-wrap"><div class="adm-empty"><div class="adm-spinner"></div>加载用户...</div></div>';
     adminFetch('/users').then(data=>{
       renderUsers(data.users || []);
     }).catch(e=>{
@@ -161,18 +184,25 @@
         </div>
         ${users.length === 0 ? '<div class="adm-card"><div class="adm-empty">还没有注册用户</div></div>' :
         `<div class="adm-card">
-          ${users.map(u=>`
+          ${users.map(u=>{
+            const name = u.display_name || u.username;
+            const avatarChar = (name||'?').trim().charAt(0).toUpperCase();
+            return `
             <div class="adm-user-row" data-uid="${u.id}">
-              <div>
-                <div class="adm-uname">${esc(u.display_name || u.username)}</div>
-                <div class="adm-uinfo">注册 ${u.created_at} · 最近活动 ${u.last_active || '-'}</div>
+              <div class="adm-user-main">
+                <div class="adm-avatar">${esc(avatarChar)}</div>
+                <div>
+                  <div class="adm-uname">${esc(name)}</div>
+                  <div class="adm-uinfo">注册 ${esc(u.created_at)} · 最近 ${esc(u.last_active || '-')}</div>
+                </div>
               </div>
-              <div style="text-align:right">
+              <div class="adm-stats">
                 <span class="adm-stat">🔊 ${u.listen_count||0}</span>
                 <span class="adm-stat">✍️ ${u.dict_count||0}</span>
                 <span class="adm-stat">🧪 ${u.diag_count||0}</span>
               </div>
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
         </div>`}
       </div>
     `;
@@ -371,23 +401,32 @@
       return `<span class="adm-chip ${cls}">${esc(g.pinyin)}·${g.status==='known'?'认识':g.status==='unsure'?'模糊':'不会'}</span>`;
     }).join('') || '<div class="adm-empty">暂无诊断记录</div>';
 
+    const uname = u.display_name || u.username;
+    const avatarChar = (uname||'?').trim().charAt(0).toUpperCase();
     c.innerHTML = `
       <div class="adm-wrap">
         <button class="adm-back" id="admBack">← 返回用户列表</button>
-        <div class="adm-title">👤 ${esc(u.display_name || u.username)} <span style="font-size:13px;font-weight:400;color:#94a3b8">注册于 ${esc(u.created_at)}</span></div>
+
+        <div class="adm-card" style="display:flex;align-items:center;gap:14px">
+          <div class="adm-avatar" style="width:52px;height:52px;font-size:22px">${esc(avatarChar)}</div>
+          <div>
+            <div style="font-size:19px;font-weight:800;color:#1e293b">${esc(uname)}</div>
+            <div style="font-size:12px;color:#94a3b8;margin-top:3px">注册于 ${esc(u.created_at)} · ID ${u.id}</div>
+          </div>
+        </div>
 
         <div class="adm-card">
           <div class="adm-sec">📊 总览 <span class="bar"></span></div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            <span class="adm-stat">🔊 听读 ${d.listen_total||0} 次</span>
-            <span class="adm-stat">✍️ 听写 ${(d.sessions||[]).length} 次</span>
-            <span class="adm-stat">🧪 诊断 ${(d.diag||[]).length} 项</span>
-            <span class="adm-stat">✅ 认识 ${dc.known||0}</span>
-            <span class="adm-stat">⚠️ 模糊 ${dc.unsure||0}</span>
-            <span class="adm-stat">❌ 不会 ${dc.unknown||0}</span>
+          <div class="adm-overview">
+            <div class="adm-ov-item"><b>${d.listen_total||0}</b><span>🔊 听读</span></div>
+            <div class="adm-ov-item"><b>${(d.sessions||[]).length}</b><span>✍️ 听写</span></div>
+            <div class="adm-ov-item"><b>${(d.diag||[]).length}</b><span>🧪 诊断</span></div>
+            <div class="adm-ov-item known"><b>${dc.known||0}</b><span>✅ 认识</span></div>
+            <div class="adm-ov-item unsure"><b>${dc.unsure||0}</b><span>⚠️ 模糊</span></div>
+            <div class="adm-ov-item unknown"><b>${dc.unknown||0}</b><span>❌ 不会</span></div>
           </div>
           <div class="adm-sec">📅 学习活跃 <span class="bar"></span></div>
-          <div id="admMonthBox"></div>
+          <div id="admMonthBox"><div class="adm-empty">加载中...</div></div>
           <div class="adm-day-detail" id="admDayDetail"></div>
         </div>
 

@@ -4,11 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>学习乐园 · 后台管理</title>
+<title>学习乐园 · 管理后台</title>
 <link rel="stylesheet" href="style.css">
 <style>
-  /* 独立后台页：不需要主站的顶栏/侧栏布局，只用基础字体与背景 */
-  body{display:block;background:#f0f4ff;padding-top:24px}
+  /* 独立后台页：不用主站的顶栏/侧栏布局，独立后台风格 */
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:16px;-webkit-tap-highlight-color:transparent}
+  button{background:none;border:none;cursor:pointer;font-family:inherit;color:inherit}
+  body{
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#eef2ff 0%,#f8fafc 40%,#f0f9ff 100%);
+    color:#1e293b;min-height:100dvh;overflow-x:hidden;
+    -webkit-user-select:none;user-select:none;
+  }
+  .content{width:100%;max-width:760px;margin:0 auto;padding:0 12px 48px}
 </style>
 </head>
 <body>
