@@ -473,17 +473,29 @@
   }
 
   /* ═══ MODULE ═══ */
-  registerModule('admin', {
-    render: function(container){
+  // 独立后台页（admin.html）模式：页面直接调用 window.initAdmin()
+  if(window.ADMIN_STANDALONE){
+    window.initAdmin = function(){
       injectStyles();
       if(adminToken){
         loadUsers();
       } else {
         renderLogin();
       }
-    },
-    cleanup: function(){}
-  });
+    };
+  } else {
+    registerModule('admin', {
+      render: function(container){
+        injectStyles();
+        if(adminToken){
+          loadUsers();
+        } else {
+          renderLogin();
+        }
+      },
+      cleanup: function(){}
+    });
+  }
 
   // Expose for auth.js (login state changes re-render)
   window.adminLogout = logout;

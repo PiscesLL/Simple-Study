@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>学习乐园 · 后台管理</title>
+<link rel="stylesheet" href="style.css">
+<style>
+  /* 独立后台页：不需要主站的顶栏/侧栏布局，只用基础字体与背景 */
+  body{display:block;background:#f0f4ff;padding-top:24px}
+</style>
+</head>
+<body>
+
+<main class="content" id="app"></main>
+
+<script>
+  // 标记独立后台模式：admin.js 检测到后注册 window.initAdmin() 而不走 SPA 模块
+  window.ADMIN_STANDALONE = true;
+  // 提供 SPA 环境中的全局（admin.js 内部使用）
+  window.$ = function(sel){ return document.getElementById(sel.replace(/^#/,'')); };
+  window.registerModule = function(){};
+</script>
+<script src="modules/admin.js"></script>
+<script>
+  window.initAdmin();
+</script>
+</body>
+</html>
