@@ -84,6 +84,33 @@
       .adm-login-title{font-size:20px;font-weight:800;color:#1e293b;margin-bottom:4px}
       .adm-login-sub{font-size:13px;color:#94a3b8;margin-bottom:24px}
       .adm-login-card{width:100%;max-width:340px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:24px;box-shadow:0 8px 30px rgba(99,102,241,.1)}
+      /* 密码可见性 */
+      .adm-pw-wrap{position:relative;margin-bottom:12px}
+      .adm-pw-wrap .adm-input{margin-bottom:0;padding-right:46px}
+      .adm-pw-toggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;padding:6px;color:#94a3b8;border-radius:8px}
+      .adm-pw-toggle:hover{color:#6366f1;background:#f1f5f9}
+      /* 错误抖动 */
+      @keyframes adm-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+      .adm-shake{animation:adm-shake .4s ease}
+      /* 顶栏 */
+      .adm-topbar{position:sticky;top:0;z-index:200;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;box-shadow:0 2px 12px rgba(99,102,241,.25);margin:-16px -4px 18px;border-radius:0 0 18px 18px}
+      .adm-topbar-inner{max-width:760px;margin:0 auto;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+      .adm-topbar-l{display:flex;align-items:center;gap:10px;min-width:0}
+      .adm-topbar-logo{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+      .adm-topbar-title{font-size:16px;font-weight:800;white-space:nowrap}
+      .adm-topbar-clock{font-size:11px;opacity:.85;font-variant-numeric:tabular-nums}
+      .adm-topbar-r{display:flex;align-items:center;gap:8px;flex-shrink:0}
+      .adm-topbar-btn{background:rgba(255,255,255,.18);border:none;color:#fff;font-size:12px;font-weight:600;padding:7px 14px;border-radius:10px;cursor:pointer;transition:background .2s;white-space:nowrap}
+      .adm-topbar-btn:hover{background:rgba(255,255,255,.3)}
+      /* 模态框 */
+      .adm-mask{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px}
+      .adm-modal{background:#fff;border-radius:16px;width:100%;max-width:360px;padding:22px;box-shadow:0 20px 60px rgba(15,23,42,.25);animation:adm-pop .2s ease}
+      @keyframes adm-pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+      .adm-modal-title{font-size:16px;font-weight:800;color:#1e293b;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+      .adm-modal-x{background:none;border:none;font-size:18px;color:#94a3b8;cursor:pointer;padding:2px 6px}
+      .adm-hint-ok{color:#16a34a;font-size:13px;background:#f0fdf4;border-radius:8px;padding:8px 12px;margin-bottom:10px;display:none}
+      /* 空状态 */
+      .adm-empty-ico{font-size:34px;margin-bottom:8px;opacity:.6}
       /* spinner */
       .adm-spinner{width:22px;height:22px;border:3px solid #e2e8f0;border-top-color:#6366f1;border-radius:50%;animation:adm-spin .7s linear infinite;margin:10px auto}
       @keyframes adm-spin{to{transform:rotate(360deg)}}
@@ -106,7 +133,15 @@
     if(adminToken) opts.headers['X-Admin-Token'] = adminToken;
     return fetch('/api/admin'+path, opts).then(async res=>{
       const data = await res.json().catch(()=>({}));
-      if(!res.ok) throw new Error(data.error || '请求失败');
+      if(!res.ok){
+        // 会话过期/未验证 → 自动回登录页
+        if(res.status === 401){
+          adminToken = '';
+          localStorage.removeItem(ADMIN_TOKEN_KEY);
+          if(window.initAdmin && document.getElementById('app')) window.initAdmin();
+        }
+        throw new Error(data.error || '请求失败');
+      }
       return data;
     });
   }
@@ -128,41 +163,58 @@
         <div class="adm-login-logo">📚</div>
         <div class="adm-login-title">学习乐园</div>
         <div class="adm-login-sub">管理后台 · 请输入管理密码</div>
-        <div class="adm-login-card">
+        <div class="adm-login-card" id="admLoginCard">
           <div class="adm-err" id="admErr"></div>
-          <input class="adm-input" id="admPw" type="password" placeholder="管理密码" autocomplete="current-password">
+          <div class="adm-pw-wrap">
+            <input class="adm-input" id="admPw" type="password" placeholder="管理密码" autocomplete="current-password">
+            <button class="adm-pw-toggle" id="admPwToggle" type="button" aria-label="显示密码">👁</button>
+          </div>
           <button class="adm-btn" id="admLogin" style="width:100%">进入后台</button>
         </div>
       </div>
     `;
     document.getElementById('admLogin').addEventListener('click', doLogin);
     document.getElementById('admPw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin() });
+    document.getElementById('admPwToggle').addEventListener('click', ()=>{
+      const inp = document.getElementById('admPw');
+      const show = inp.type === 'password';
+      inp.type = show ? 'text' : 'password';
+      document.getElementById('admPwToggle').textContent = show ? '🙈' : '👁';
+    });
     document.getElementById('admPw').focus();
 
     async function doLogin(){
       const pw = document.getElementById('admPw').value;
-      if(!pw){ showErr('请输入管理密码'); return; }
+      if(!pw){
+        shake('请输入管理密码');
+        return;
+      }
       const btn = document.getElementById('admLogin');
-      btn.disabled = true; btn.textContent = '验证中...';
+      btn.disabled = true; btn.innerHTML = '<span class="adm-spinner" style="display:inline-block;vertical-align:middle;width:16px;height:16px;border-width:2px;margin:0 6px 2px 0"></span>验证中...';
       try {
         const data = await adminFetch('/login', {method:'POST', body: JSON.stringify({password: pw})});
         adminToken = data.token;
         localStorage.setItem(ADMIN_TOKEN_KEY, adminToken);
         loadUsers();
       } catch(e){
-        showErr(e.message);
+        shake(e.message);
         btn.disabled = false; btn.textContent = '进入后台';
       }
     }
-    function showErr(msg){
+    function shake(msg){
       const el = document.getElementById('admErr');
       el.textContent = msg; el.style.display = 'block';
+      const card = document.getElementById('admLoginCard');
+      card.classList.remove('adm-shake');
+      void card.offsetWidth; // 重启动画
+      card.classList.add('adm-shake');
     }
   }
 
   function loadUsers(){
     const c = $('app');
-    if(c) c.innerHTML = '<div class="adm-wrap"><div class="adm-empty"><div class="adm-spinner"></div>加载用户...</div></div>';
+    if(c) c.innerHTML = topbarHtml() + '<div class="adm-wrap"><div class="adm-empty"><div class="adm-empty-ico">👥</div><div class="adm-spinner" style="margin:14px auto"></div>加载用户...</div></div>';
+    bindTopbar();
     adminFetch('/users').then(data=>{
       renderUsers(data.users || []);
     }).catch(e=>{
@@ -174,15 +226,103 @@
     });
   }
 
+  /* ═══ TOPBAR ═══ */
+  let _clockTimer = null;
+  function startClock(){
+    const el = document.getElementById('admClock');
+    if(!el) return;
+    const tick = ()=>{
+      const d = new Date();
+      const p = n => String(n).padStart(2,'0');
+      el.textContent = d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+    };
+    tick();
+    if(_clockTimer) clearInterval(_clockTimer);
+    _clockTimer = setInterval(tick, 1000);
+  }
+  function stopClock(){
+    if(_clockTimer){ clearInterval(_clockTimer); _clockTimer = null; }
+  }
+  function topbarHtml(){
+    return `
+      <div class="adm-topbar">
+        <div class="adm-topbar-inner">
+          <div class="adm-topbar-l">
+            <div class="adm-topbar-logo">📚</div>
+            <div>
+              <div class="adm-topbar-title">学习乐园 · 管理后台</div>
+              <div class="adm-topbar-clock" id="admClock"></div>
+            </div>
+          </div>
+          <div class="adm-topbar-r">
+            <button class="adm-topbar-btn" id="admTopPwd">🔑 修改密码</button>
+            <button class="adm-topbar-btn" id="admTopLogout">退出</button>
+          </div>
+        </div>
+      </div>`;
+  }
+  function bindTopbar(){
+    startClock();
+    const lg = document.getElementById('admTopLogout');
+    if(lg) lg.addEventListener('click', ()=>{ stopClock(); logout(); });
+    const pwd = document.getElementById('admTopPwd');
+    if(pwd) pwd.addEventListener('click', openChangePwd);
+  }
+
+  /* ═══ CHANGE PASSWORD MODAL ═══ */
+  function openChangePwd(){
+    const c = $('app');
+    const mask = document.createElement('div');
+    mask.className = 'adm-mask';
+    mask.innerHTML = `
+      <div class="adm-modal">
+        <div class="adm-modal-title">修改管理密码 <button class="adm-modal-x" id="admPwdX">✕</button></div>
+        <div class="adm-err" id="admPwdErr"></div>
+        <div class="adm-hint-ok" id="admPwdOk">✅ 密码已修改，下次登录请使用新密码</div>
+        <input class="adm-input" id="admOldPw" type="password" placeholder="当前密码" autocomplete="current-password">
+        <input class="adm-input" id="admNewPw" type="password" placeholder="新密码（至少4位）" autocomplete="new-password">
+        <input class="adm-input" id="admNewPw2" type="password" placeholder="确认新密码" autocomplete="new-password">
+        <button class="adm-btn" id="admPwdSave" style="width:100%">保存新密码</button>
+      </div>
+    `;
+    c.appendChild(mask);
+    const close = ()=>{ mask.remove(); };
+    document.getElementById('admPwdX').addEventListener('click', close);
+    mask.addEventListener('click', e=>{ if(e.target === mask) close(); });
+    document.getElementById('admOldPw').focus();
+    document.getElementById('admPwdSave').addEventListener('click', ()=>{
+      const oldPw = document.getElementById('admOldPw').value;
+      const newPw = document.getElementById('admNewPw').value;
+      const newPw2 = document.getElementById('admNewPw2').value;
+      const errEl = document.getElementById('admPwdErr');
+      errEl.style.display = 'none';
+      if(!oldPw){ errEl.textContent = '请输入当前密码'; errEl.style.display = 'block'; return; }
+      if(newPw.length < 4){ errEl.textContent = '新密码至少4位'; errEl.style.display = 'block'; return; }
+      if(newPw !== newPw2){ errEl.textContent = '两次输入的新密码不一致'; errEl.style.display = 'block'; return; }
+      const btn = document.getElementById('admPwdSave');
+      btn.disabled = true; btn.textContent = '保存中...';
+      adminFetch('/password', {method:'POST', body: JSON.stringify({old_password: oldPw, new_password: newPw})}).then(()=>{
+        const ok = document.getElementById('admPwdOk');
+        ok.style.display = 'block';
+        btn.disabled = false; btn.textContent = '保存新密码';
+        document.getElementById('admOldPw').value = '';
+        document.getElementById('admNewPw').value = '';
+        document.getElementById('admNewPw2').value = '';
+      }).catch(e=>{
+        errEl.textContent = e.message; errEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = '保存新密码';
+      });
+    });
+  }
+
   function renderUsers(users){
     currentUid = null;
     const c = $('app');
-    c.innerHTML = `
+    c.innerHTML = topbarHtml() + `
       <div class="adm-wrap">
         <div class="adm-title">👥 用户列表 <span style="font-size:13px;font-weight:400;color:#94a3b8">${users.length} 人</span>
-          <button class="adm-logout" id="admLogout">退出后台</button>
         </div>
-        ${users.length === 0 ? '<div class="adm-card"><div class="adm-empty">还没有注册用户</div></div>' :
+        ${users.length === 0 ? '<div class="adm-card"><div class="adm-empty"><div class="adm-empty-ico">👤</div>还没有注册用户</div></div>' :
         `<div class="adm-card">
           ${users.map(u=>{
             const name = u.display_name || u.username;
@@ -206,7 +346,7 @@
         </div>`}
       </div>
     `;
-    document.getElementById('admLogout').addEventListener('click', logout);
+    bindTopbar();
     c.querySelectorAll('.adm-user-row').forEach(el=>{
       el.addEventListener('click', ()=> loadUserDetail(el.dataset.uid));
     });
@@ -376,7 +516,7 @@
     // Recent listening
     const recent = (d.listen_recent||[]).slice(0,15).map(r=>
       `<div class="adm-detail-item"><span><span class="adm-chip">${esc(r.category)}</span> ${esc(r.item)}</span><span style="color:#94a3b8;font-size:12px">${esc(r.listened_at)}</span></div>`
-    ).join('') || '<div class="adm-empty">暂无听读记录</div>';
+    ).join('') || '<div class="adm-empty"><div class="adm-empty-ico">🔇</div>暂无听读记录</div>';
 
     // Dictation sessions with details
     const sessions = (d.sessions||[]).map(s=>{
@@ -393,17 +533,17 @@
           </div>
           <div style="margin-top:6px">${details}</div>
         </div>`;
-    }).join('') || '<div class="adm-empty">暂无听写记录</div>';
+    }).join('') || '<div class="adm-empty"><div class="adm-empty-ico">✍️</div>暂无听写记录</div>';
 
     // Diagnosis
     const diagItems = (d.diag||[]).map(g=>{
       const cls = g.status==='known'?'good':g.status==='unsure'?'warn':'bad';
       return `<span class="adm-chip ${cls}">${esc(g.pinyin)}·${g.status==='known'?'认识':g.status==='unsure'?'模糊':'不会'}</span>`;
-    }).join('') || '<div class="adm-empty">暂无诊断记录</div>';
+    }).join('') || '<div class="adm-empty"><div class="adm-empty-ico">🧪</div>暂无诊断记录</div>';
 
     const uname = u.display_name || u.username;
     const avatarChar = (uname||'?').trim().charAt(0).toUpperCase();
-    c.innerHTML = `
+    c.innerHTML = topbarHtml() + `
       <div class="adm-wrap">
         <button class="adm-back" id="admBack">← 返回用户列表</button>
 
@@ -447,6 +587,7 @@
       </div>
     `;
     document.getElementById('admBack').addEventListener('click', loadUsers);
+    bindTopbar();
 
     // 加载当月活跃图
     renderMonthCard(curMonth);
