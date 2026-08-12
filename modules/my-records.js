@@ -21,8 +21,25 @@
       .mr-chip.bad{background:#fee2e2;color:#dc2626}
       .mr-chip.warn{background:#fef9c3;color:#ca8a04}
       .mr-empty{text-align:center;color:#94a3b8;font-size:13px;padding:18px 0}
+      .act-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px}
+      .act-nav-btn{background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;color:#475569;font-size:16px;font-weight:700;width:30px;height:30px;line-height:1;cursor:pointer;padding:0}
+      .act-nav-btn:disabled{opacity:.35;cursor:default}
+      .act-nav-btn:active:not(:disabled){transform:scale(.94)}
+      .act-month{font-size:14px;font-weight:700;color:#334155;min-width:90px;text-align:center}
+      .act-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+      .act-stat{display:inline-flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 14px;font-size:11px;color:#64748b}
+      .act-stat b{font-size:18px;color:#4338ca}
+      .act-daily{display:flex;align-items:flex-end;gap:2px;height:72px;padding:18px 2px 0;width:100%}
+      .act-daily .d{display:flex;flex-direction:column;align-items:center;flex:1 1 0;min-width:0;height:100%;justify-content:flex-end}
+      .act-daily .dv{width:70%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;position:relative;min-height:4px;transition:height .3s}
+      .act-daily .dv-empty{background:#f1f5f9;height:4px!important;min-height:4px;width:70%}
+      .act-daily .dv-n{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#6366f1;font-weight:700;white-space:nowrap}
+      .act-scale{display:flex;gap:2px;margin-top:4px;width:100%}
+      .act-scale .act-scl{flex:1 1 0;min-width:0;font-size:8px;color:transparent;text-align:center}
+      .act-scale .act-scl.show{color:#94a3b8}
       .act-daily .d.active{cursor:pointer}
       .act-daily .d.active:hover .dv{filter:brightness(1.15)}
+      .act-daily .d.today .dv{box-shadow:0 0 0 1.5px #6366f1}
       .mr-day-detail{margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:10px;display:none}
       .mr-day-detail.open{display:block}
       .mr-day-head{font-size:13px;font-weight:700;color:#334155;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -70,8 +87,8 @@
     const dc = {};
     (data.diag||[]).forEach(g=>{ dc[g.status] = (dc[g.status]||0)+1 });
 
-    // Daily bars (shared renderer from admin.js)
-    const activityHtml = window.renderActivityBars ? window.renderActivityBars(data.daily||[]) : '';
+    // Daily bars (shared renderer from admin.js) — 按月视图，下方容器异步加载
+    const activityHtml = '<div id="mrMonthBox"><div class="mr-empty">加载中...</div></div>';
 
     // Recent listening (top 12)
     const recentHtml = (data.recent_listen || []).slice(0,12).map(r=>
@@ -114,7 +131,7 @@
         </div>
 
         <div class="mr-card">
-          <div class="mr-sec">📅 近30天活跃 <span class="bar"></span></div>
+          <div class="mr-sec">📅 学习活跃 <span class="bar"></span></div>
           ${activityHtml}
           <div class="mr-day-detail" id="mrDayDetail"></div>
         </div>
@@ -137,16 +154,49 @@
       </div>
     `;
 
-    // 活跃柱子点击 → 查看当日详情
-    const dailyEl = c.querySelector('.act-daily');
-    if(dailyEl){
-      dailyEl.addEventListener('click', e=>{
-        const bar = e.target.closest('.d.active');
-        if(!bar) return;
-        const date = bar.getAttribute('data-date');
-        if(date) loadDayDetail(c, date);
+    // 加载当月活跃图 + 月份导航 + 柱子点击
+    renderMonthCard(c, 'mrMonthBox');
+  }
+
+  function renderMonthCard(c, boxId){
+    const box = c.querySelector('#' + boxId);
+    if(!box) return;
+    if(!window.renderMonthBars) return;
+    const now = new Date();
+    const curMonth = String(now.getFullYear()) + '-' + String(now.getMonth()+1).padStart(2,'0');
+
+    function load(month){
+      box.innerHTML = '<div class="mr-empty">加载中...</div>';
+      window.api.request('GET', '/stats/month?month=' + encodeURIComponent(month)).then(md=>{
+        if(!md) return;
+        const html = window.renderMonthBars(md.month, md, {canPrev:true, canNext:true});
+        box.innerHTML = html;
+        const prevBtn = box.querySelector('#actPrev');
+        const nextBtn = box.querySelector('#actNext');
+        if(prevBtn) prevBtn.addEventListener('click', ()=>load(shiftMonth(month,-1)));
+        if(nextBtn) nextBtn.addEventListener('click', ()=>load(shiftMonth(month,1)));
+        const dailyEl = box.querySelector('.act-daily');
+        if(dailyEl){
+          dailyEl.addEventListener('click', e=>{
+            const bar = e.target.closest('.d.active');
+            if(!bar) return;
+            const date = bar.getAttribute('data-date');
+            if(date) loadDayDetail(c, date);
+          });
+        }
+      }).catch(()=>{
+        box.innerHTML = '<div class="mr-empty">加载失败</div>';
       });
     }
+    load(curMonth);
+  }
+
+  function shiftMonth(month, delta){
+    const y = parseInt(month.slice(0,4), 10), m = parseInt(month.slice(5,7), 10);
+    let ny = y, nm = m + delta;
+    if(nm < 1){ ny--; nm = 12; }
+    if(nm > 12){ ny++; nm = 1; }
+    return ny + '-' + String(nm).padStart(2,'0');
   }
 
   function loadDayDetail(c, date){

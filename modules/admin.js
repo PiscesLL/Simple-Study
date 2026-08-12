@@ -40,6 +40,11 @@
       .adm-daily .dv{width:100%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;min-height:2px}
       .adm-daily .dl{font-size:9px;color:#94a3b8;margin-top:3px;transform:rotate(-45deg);white-space:nowrap}
       .act-wrap{width:100%}
+      .act-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px}
+      .act-nav-btn{background:#fff;border:1.5px solid #cbd5e1;border-radius:8px;color:#475569;font-size:16px;font-weight:700;width:30px;height:30px;line-height:1;cursor:pointer;padding:0}
+      .act-nav-btn:disabled{opacity:.35;cursor:default}
+      .act-nav-btn:active:not(:disabled){transform:scale(.94)}
+      .act-month{font-size:14px;font-weight:700;color:#334155;min-width:90px;text-align:center}
       .act-stats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
       .act-stat{display:inline-flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 14px;font-size:11px;color:#64748b}
       .act-stat b{font-size:18px;color:#4338ca}
@@ -48,8 +53,12 @@
       .act-daily .dv{width:70%;background:linear-gradient(180deg,#6366f1,#8b5cf6);border-radius:3px 3px 0 0;position:relative;min-height:4px;transition:height .3s}
       .act-daily .dv-empty{background:#f1f5f9;height:4px!important;min-height:4px;width:70%}
       .act-daily .dv-n{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;color:#6366f1;font-weight:700;white-space:nowrap}
-      .act-daily .dl{font-size:8px;color:#cbd5e1;margin-top:4px;white-space:nowrap;overflow:visible;text-align:center}
-      .act-daily .d.active .dl{color:#94a3b8;font-weight:600}
+      .act-scale{display:flex;gap:2px;margin-top:4px;width:100%}
+      .act-scale .act-scl{flex:1 1 0;min-width:0;font-size:8px;color:transparent;text-align:center}
+      .act-scale .act-scl.show{color:#94a3b8}
+      .act-daily .d.active{cursor:pointer}
+      .act-daily .d.active:hover .dv{filter:brightness(1.15)}
+      .act-daily .d.today .dv{box-shadow:0 0 0 1.5px #6366f1}
       .adm-empty{text-align:center;color:#94a3b8;font-size:13px;padding:18px 0}
       .adm-detail-item{display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px dashed #f1f5f9;font-size:14px}
       .adm-detail-item:last-child{border-bottom:none}
@@ -57,8 +66,6 @@
       .adm-session-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;color:#334155}
       .adm-session .adm-chip{font-size:11px}
       .adm-logout{float:right;font-size:12px;color:#94a3b8;background:none;border:none;cursor:pointer;text-decoration:underline}
-      .act-daily .d.active{cursor:pointer}
-      .act-daily .d.active:hover .dv{filter:brightness(1.15)}
       .adm-day-detail{margin-top:10px;border-top:1px dashed #e2e8f0;padding-top:10px;display:none}
       .adm-day-detail.open{display:block}
       .adm-day-head{font-size:13px;font-weight:700;color:#334155;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -198,58 +205,85 @@
     t._timer = setTimeout(()=>{ t.style.opacity = '0' }, 2500);
   }
 
-  /* ═══ ACTIVITY BARS (shared by admin + my-records) ═══
-     daily: [{d:'YYYY-MM-DD', c:N}] (backend grouped, last 30 days)
-     Renders: summary stats + only-active-day bars with sparse labels. */
+  /* ═══ MONTH ACTIVITY BARS (shared by admin + my-records) ═══
+     renderMonthBars(month, monthData, opts)
+       month: 'YYYY-MM'
+       monthData: {days:[{d:'YYYY-MM-DD', c:N}], active_days, total_count, best_streak}
+       opts: { onPrev(month), onNext(month), onDayClick(date), canPrev, canNext }
+     月份导航 + 该月每日柱子 + 底部日期刻度（独立行，不占柱子高度） */
   function fmtLocal(dt){
     const p = n => String(n).padStart(2, '0');
     return dt.getFullYear() + '-' + p(dt.getMonth()+1) + '-' + p(dt.getDate());
   }
 
+  window.renderMonthBars = function(month, md, opts){
+    opts = opts || {};
+    const dailyMap = {};
+    (md.days||[]).forEach(x=>{ dailyMap[x.d] = x.c });
+
+    // 该月全部日期
+    const y = parseInt(month.slice(0,4), 10), m = parseInt(month.slice(5,7), 10);
+    const ndays = new Date(y, m, 0).getDate();
+    const days = [];
+    for(let day=1; day<=ndays; day++){
+      const key = month + '-' + String(day).padStart(2,'0');
+      days.push({key, count: dailyMap[key] || 0});
+    }
+    const maxC = Math.max(1, ...days.map(x=>x.count));
+    const todayStr = fmtLocal(new Date());
+    const isThisMonth = month === todayStr.slice(0,7);
+
+    const bars = days.map(x=>{
+      const isActive = x.count > 0;
+      const isToday = isThisMonth && x.key === todayStr;
+      return `
+        <div class="d${isActive?' active':''}${isToday?' today':''}" data-date="${x.key}" title="${x.key} · ${x.count}次${isActive?'':'（未学习）'}">
+          ${isActive ? `<div class="dv" style="height:${Math.max(4, Math.round(x.count/maxC*100))}%"><span class="dv-n">${x.count}</span></div>` : '<div class="dv dv-empty"></div>'}
+        </div>`;
+    }).join('');
+
+    // 底部日期刻度：只标 1 / 5 / 10 / 15 / 20 / 25 / 末日（稀疏，不挤）
+    const scale = days.map(x=>{
+      const day = parseInt(x.key.slice(8,10), 10);
+      const show = (day===1 || day%5===0 || day===ndays);
+      return `<span class="act-scl${show?' show':''}">${show ? day : ''}</span>`;
+    }).join('');
+
+    const stats = `
+      <div class="act-stats">
+        <span class="act-stat"><b>${md.active_days||0}</b>活跃天数</span>
+        <span class="act-stat"><b>${md.total_count||0}</b>学习次数</span>
+        <span class="act-stat"><b>${md.best_streak||0}</b>最长连续(天)</span>
+      </div>`;
+
+    const nav = `
+      <div class="act-nav">
+        <button class="act-nav-btn" id="actPrev" ${opts.canPrev===false?'disabled':''}>‹</button>
+        <span class="act-month">${y}年${m}月${isThisMonth?' <em style="font-style:normal;color:#94a3b8;font-size:11px">本月</em>':''}</span>
+        <button class="act-nav-btn" id="actNext" ${opts.canNext===false?'disabled':''}>›</button>
+      </div>`;
+
+    return `<div class="act-wrap">${nav}${stats}<div class="act-daily">${bars}</div><div class="act-scale">${scale}</div></div>`;
+  };
+
+  // 兼容旧引用：renderActivityBars 仍可用（默认渲染近30天，无导航）
   window.renderActivityBars = function(daily){
     const dailyMap = {};
     (daily||[]).forEach(x=>{ dailyMap[x.d] = x.c });
-
-    // Build last-30-days array
     const days = [];
     for(let i=29; i>=0; i--){
       const dt = new Date(Date.now() - i*86400000);
       days.push({key: fmtLocal(dt), count: dailyMap[fmtLocal(dt)] || 0});
     }
     const maxC = Math.max(1, ...days.map(x=>x.count));
-    const activeDays = days.filter(x=>x.count>0);
-    const totalCount = days.reduce((s,x)=>s+x.count, 0);
-
-    // Longest consecutive streak
-    let streak = 0, best = 0;
-    days.forEach(x=>{
-      if(x.count>0){ streak++; best = Math.max(best, streak); }
-      else streak = 0;
-    });
-
-    // 标签稀疏化：月初显示"8月"（短格式，柱子窄放不下 YYYY-MM），最后一天显示"今天"
-    const todayKey = days[days.length-1].key;
     const bars = days.map(x=>{
-      const dt = new Date(x.key + 'T00:00:00');
-      let label = '';
-      if(dt.getDate() === 1) label = (dt.getMonth()+1) + '月'; // "8月"
-      else if(x.key === todayKey) label = '今天';
       const isActive = x.count > 0;
       return `
         <div class="d${isActive?' active':''}" data-date="${x.key}" title="${x.key} · ${x.count}次${isActive?'':'（未学习）'}">
           ${isActive ? `<div class="dv" style="height:${Math.max(4, Math.round(x.count/maxC*100))}%"><span class="dv-n">${x.count}</span></div>` : '<div class="dv dv-empty"></div>'}
-          ${label ? `<div class="dl">${label}</div>` : ''}
         </div>`;
     }).join('');
-
-    const stats = `
-      <div class="act-stats">
-        <span class="act-stat"><b>${activeDays.length}</b>活跃天数</span>
-        <span class="act-stat"><b>${totalCount}</b>学习次数</span>
-        <span class="act-stat"><b>${best}</b>最长连续(天)</span>
-      </div>`;
-
-    return `<div class="act-wrap">${stats}<div class="act-daily">${bars}</div></div>`;
+    return `<div class="act-wrap"><div class="act-daily">${bars}</div></div>`;
   };
 
   function renderUserDetail(d){
@@ -259,8 +293,55 @@
     const dc = d.diag_counts || {};
     const knownPct = d.listen_by_cat && d.listen_by_cat.length ? '' : '';
 
-    // Daily activity bars (last 30 days) — optimized view
-    const activityHtml = window.renderActivityBars ? window.renderActivityBars(d.daily||[]) : '';
+    // Daily activity — 按月视图（默认当月）
+    const now = new Date();
+    const curMonth = fmtLocal(now).slice(0,7);
+
+    function renderMonthCard(month){
+      const box = c.querySelector('#admMonthBox');
+      if(!box) return;
+      box.innerHTML = '<div class="adm-empty">加载中...</div>';
+      adminFetch('/users/' + currentUid + '/month?month=' + encodeURIComponent(month)).then(md=>{
+        if(!md) return;
+        const todayStr = fmtLocal(new Date());
+        const monthStr = fmtLocal(new Date()).slice(0,7);
+        const html = window.renderMonthBars(md.month, md, {
+          canPrev: true,
+          canNext: monthStr !== md.month,
+          onPrev: (m)=>{ renderMonthCard(prevMonth(m)); },
+          onNext: (m)=>{ renderMonthCard(nextMonth(m)); }
+        });
+        box.innerHTML = html;
+        // 绑定导航
+        const prevBtn = box.querySelector('#actPrev');
+        const nextBtn = box.querySelector('#actNext');
+        if(prevBtn) prevBtn.addEventListener('click', ()=>renderMonthCard(prevMonth(month)));
+        if(nextBtn) nextBtn.addEventListener('click', ()=>renderMonthCard(nextMonth(month)));
+        // 绑定柱子点击
+        const dailyEl = box.querySelector('.act-daily');
+        if(dailyEl){
+          dailyEl.addEventListener('click', e=>{
+            const bar = e.target.closest('.d.active');
+            if(!bar) return;
+            const date = bar.getAttribute('data-date');
+            if(date) loadAdminDayDetail(c, currentUid, date);
+          });
+        }
+      }).catch(e=>{
+        box.innerHTML = '<div class="adm-empty">加载失败</div>';
+      });
+    }
+
+    function prevMonth(m){
+      const y = parseInt(m.slice(0,4), 10), mo = parseInt(m.slice(5,7), 10);
+      if(mo === 1) return (y-1) + '-12';
+      return y + '-' + String(mo-1).padStart(2,'0');
+    }
+    function nextMonth(m){
+      const y = parseInt(m.slice(0,4), 10), mo = parseInt(m.slice(5,7), 10);
+      if(mo === 12) return (y+1) + '-01';
+      return y + '-' + String(mo+1).padStart(2,'0');
+    }
 
     // Recent listening
     const recent = (d.listen_recent||[]).slice(0,15).map(r=>
@@ -305,8 +386,8 @@
             <span class="adm-stat">⚠️ 模糊 ${dc.unsure||0}</span>
             <span class="adm-stat">❌ 不会 ${dc.unknown||0}</span>
           </div>
-          <div class="adm-sec">📅 近30天活跃 <span class="bar"></span></div>
-          ${activityHtml}
+          <div class="adm-sec">📅 学习活跃 <span class="bar"></span></div>
+          <div id="admMonthBox"></div>
           <div class="adm-day-detail" id="admDayDetail"></div>
         </div>
 
@@ -328,16 +409,8 @@
     `;
     document.getElementById('admBack').addEventListener('click', loadUsers);
 
-    // 活跃柱子点击 → 查看当日详情（管理员接口）
-    const dailyEl = c.querySelector('.act-daily');
-    if(dailyEl){
-      dailyEl.addEventListener('click', e=>{
-        const bar = e.target.closest('.d.active');
-        if(!bar) return;
-        const date = bar.getAttribute('data-date');
-        if(date) loadAdminDayDetail(c, currentUid, date);
-      });
-    }
+    // 加载当月活跃图
+    renderMonthCard(curMonth);
   }
 
   function loadAdminDayDetail(c, uid, date){

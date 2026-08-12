@@ -427,6 +427,53 @@ def api_stats(user):
         'diag': [dict(r) for r in diag]
     })
 
+def month_daily(db, uid, month):
+    """某月每日学习次数（听读+听写），month 格式 YYYY-MM"""
+    rows = db.execute("""
+        SELECT d, SUM(cnt) as c FROM (
+            SELECT date(listened_at) as d, COUNT(*) as cnt FROM listening_records
+            WHERE user_id=? AND date(listened_at) LIKE ? GROUP BY d
+            UNION ALL
+            SELECT date(completed_at) as d, 1 as cnt FROM dictation_sessions
+            WHERE user_id=? AND date(completed_at) LIKE ? GROUP BY d
+        ) GROUP BY d ORDER BY d
+    """, (uid, month + '%', uid, month + '%')).fetchall()
+    return [dict(r) for r in rows]
+
+@app.route('/api/stats/month', methods=['GET'])
+@require_auth
+def api_stats_month(user):
+    """按月查询活跃：?month=2026-08，返回该月每日统计 + 汇总"""
+    month = request.args.get('month', '')
+    if not month:
+        return jsonify({'error': '缺少月份'}), 400
+    uid = user['id']
+    with get_db() as db:
+        daily = month_daily(db, uid, month)
+    active_days = [x for x in daily if x['c'] > 0]
+    total = sum(x['c'] for x in daily)
+    streak = best = 0
+    days_in_month = {}
+    for x in daily:
+        days_in_month[x['d']] = x['c']
+    import calendar
+    y, m = int(month[:4]), int(month[5:7])
+    ndays = calendar.monthrange(y, m)[1]
+    for day in range(1, ndays + 1):
+        d = '%s-%02d' % (month, day)
+        if days_in_month.get(d, 0) > 0:
+            streak += 1
+            best = max(best, streak)
+        else:
+            streak = 0
+    return jsonify({
+        'month': month,
+        'days': daily,
+        'active_days': len(active_days),
+        'total_count': total,
+        'best_streak': best
+    })
+
 @app.route('/api/stats/daily', methods=['GET'])
 @require_auth
 def api_stats_daily(user):
@@ -628,6 +675,42 @@ def api_admin_user_daily(uid):
         'listens_count': len(listens),
         'sessions_count': len(sessions_out),
         'diag_count': len(diag)
+    })
+
+@app.route('/api/admin/users/<int:uid>/month', methods=['GET'])
+@require_admin
+def api_admin_user_month(uid):
+    """管理员按月查看某用户活跃：?month=2026-08"""
+    month = request.args.get('month', '')
+    if not month:
+        return jsonify({'error': '缺少月份'}), 400
+    with get_db() as db:
+        user = db.execute("SELECT id FROM users WHERE id=?", (uid,)).fetchone()
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+        daily = month_daily(db, uid, month)
+    active_days = [x for x in daily if x['c'] > 0]
+    total = sum(x['c'] for x in daily)
+    days_in_month = {}
+    for x in daily:
+        days_in_month[x['d']] = x['c']
+    import calendar
+    y, m = int(month[:4]), int(month[5:7])
+    ndays = calendar.monthrange(y, m)[1]
+    streak = best = 0
+    for day in range(1, ndays + 1):
+        d = '%s-%02d' % (month, day)
+        if days_in_month.get(d, 0) > 0:
+            streak += 1
+            best = max(best, streak)
+        else:
+            streak = 0
+    return jsonify({
+        'month': month,
+        'days': daily,
+        'active_days': len(active_days),
+        'total_count': total,
+        'best_streak': best
     })
 
 # ═══════════════════════════════════════════════════════════════
